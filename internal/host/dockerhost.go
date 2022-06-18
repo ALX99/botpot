@@ -1,6 +1,10 @@
 package host
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/rs/zerolog/log"
+)
 
 type DHost struct {
 	id       string
@@ -10,16 +14,19 @@ type DHost struct {
 }
 
 func NewDHost(ID string) *DHost {
+	log.Debug().Str("ID", ID).Msg("Created")
 	return &DHost{id: ID}
 }
 
 func (h *DHost) SetRunning(val bool) {
+	log.Debug().Str("ID", h.id).Bool("running", val).Send()
 	h.Lock()
 	h.running = val
 	h.Unlock()
 }
 
 func (h *DHost) SetOccupied(val bool) {
+	log.Debug().Str("ID", h.id).Bool("occupied", val).Send()
 	h.Lock()
 	h.occupied = val
 	h.Unlock()

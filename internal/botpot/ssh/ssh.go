@@ -2,11 +2,11 @@ package ssh
 
 import (
 	"io/ioutil"
-	"log"
 	"net"
 	"strconv"
 
 	"github.com/alx99/botpot/internal/hostprovider"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -36,6 +36,7 @@ func New(port int, provider hostprovider.SSH) *Server {
 
 // Start starts the SSH server
 func (s *Server) Start() error {
+	log.Info().Msg("Starting SSH Server")
 	hostKey, err := readHostKey("./key")
 	if err != nil {
 		return err
@@ -46,7 +47,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-	log.Println("Started listening")
+	log.Debug().Msgf("Started listening on :%d", s.port)
 
 	go s.loop()
 	return nil
@@ -54,6 +55,7 @@ func (s *Server) Start() error {
 
 // Stop stops the SSH server
 func (s *Server) Stop() error {
+	log.Info().Msg("Stopping SSH Server")
 	s.lIsClosed = true
 	return s.l.Close()
 }
@@ -75,20 +77,20 @@ func (s *Server) loop() {
 			if s.lIsClosed {
 				break // Here we've closed the listener
 			}
-			log.Println("Could not accept connection,", err)
+			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
 		// Handshake connection
 		sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
 		if err != nil {
-			log.Println("Could not handshake SSH connection,", err)
+			log.Err(err).Msg("Could not handshake SSH connection")
 			conn.Close()
 			continue
 		}
 
 		host, ID, err := s.provider.GetHost()
 		if err != nil {
-			log.Println("Could not get a hold of an SSH host", err)
+			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
 		p := newProxy(host, "panda", "password")
@@ -100,7 +102,7 @@ func (s *Server) loop() {
 			onDisconnect: func() {
 				err := s.provider.StopHost(ID)
 				if err != nil {
-					log.Println("onDisconnect failed", err)
+					log.Err(err).Msg("onDisconnect failed")
 				}
 			},
 		}

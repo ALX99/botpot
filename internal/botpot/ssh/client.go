@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -16,31 +17,39 @@ type client struct {
 	name         string
 	disconnected bool
 	onDisconnect func()
+	info         func() *zerolog.Event
+	debug        func() *zerolog.Event
+	err          func(err error) *zerolog.Event
 }
 
 // handle handles the client, and is non blocking
 func (c *client) handle(reqChan <-chan *ssh.Request) {
 	c.name = fmt.Sprintf("%s %s", c.conn.RemoteAddr(), c.conn.ClientVersion())
-	log.Println(c.name, "connected")
+	// Setup loggers
+	c.info = func() *zerolog.Event { return log.Info().Str("client", c.name) }
+	c.debug = func() *zerolog.Event { return log.Debug().Str("client", c.name) }
+	c.err = func(err error) *zerolog.Event { return log.Err(err).Str("client", c.name) }
+
+	c.info().Msg("Connected")
 
 	err := c.p.Connect()
 	if err != nil {
-		log.Println(c.name, "could not connect to proxy", err)
+		c.err(err).Msg("Could not connect to proxy")
 		c.disconnect()
 		return
 	}
 
-	log.Println(c.name, "connected to proxy")
+	c.info().Msg("Connected to proxy")
 	go c.handleChannels()
 	go c.handleGlobalRequests(c.p.client, reqChan) // client to proxy
 
 	go func() {
 		c.conn.Wait()
 		c.disconnected = true
-		log.Println(c.name, "disconnected")
+		c.info().Msg("Disconnected")
 		err = c.p.Disconnect()
 		if err != nil {
-			log.Println(c.name, "error while disconnecting proxy", err)
+			c.err(err).Msg("Error while disconnecting proxy")
 		}
 		c.onDisconnect()
 	}()
@@ -50,10 +59,10 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 		if c.disconnected {
 			return
 		}
-		log.Println(c.name, "something went wrong, proxy was disconnected")
+		c.err(errors.New("proxy disconnected without client")).Msg("Something went wrong")
 		err := c.disconnect()
 		if err != nil {
-			log.Println("client disconnect error", err)
+			c.err(err).Msg("Error while disconnecting client")
 		}
 		c.disconnected = true
 	}()
@@ -66,20 +75,20 @@ func (c *client) disconnect() error {
 // handleChannels handles channel requests from the client
 func (c *client) handleChannels() {
 	for chanReq := range c.channelchan {
-		log.Println(c.name, "wants to open channel", chanReq.ChannelType(), string(chanReq.ExtraData()))
+		c.info().Str("type", chanReq.ChannelType()).Str("extraData", string(chanReq.ExtraData())).Msg("Wants to open channel")
 
 		proxyChan, proxyReqChan, err := c.p.openChannel(chanReq.ChannelType(), chanReq.ExtraData())
 		if err != nil {
-			log.Println(c.name, "could not open channel", err)
+			c.err(err).Msg("Could not open channel")
 			err = chanReq.Reject(ssh.ConnectionFailed, "")
 			if err != nil {
-				log.Println(c.name, "could not reject channel request", err)
+				c.err(err).Msg("Could not reject channel request")
 			}
 			continue
 		}
 		clientChan, clientReqChan, err := chanReq.Accept()
 		if err != nil {
-			log.Println(c.name, "could not accept channel request", err)
+			c.err(err).Msg("Could not accept channel request")
 		}
 
 		go c.handleChannel(clientChan, proxyChan)           // handle the new channel
@@ -96,11 +105,11 @@ func (c *client) handleChannel(clientChan, proxyChan ssh.Channel) {
 			i, err := read(b)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
-					log.Println(c.name, "EOF read", i)
+					c.debug().Int("bytesRead", i).Msg("EOF read")
 					wclose()
 					return
 				}
-				log.Println(c.name, "failed to read", err)
+				c.err(err).Msg("Failed to read")
 				continue
 			}
 			// todo log later
@@ -110,11 +119,11 @@ func (c *client) handleChannel(clientChan, proxyChan ssh.Channel) {
 			i, err = write(b)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
-					log.Println(c.name, "EOF write", i)
+					c.debug().Int("bytesRead", i).Msg("EOF read")
 					rclose()
 					return
 				}
-				log.Println(c.name, "failed to write", err)
+				c.err(err).Msg("Failed to read")
 			}
 		}
 	}
@@ -130,11 +139,11 @@ func (c *client) handleChannelRequest(channel ssh.Channel, reqChan <-chan *ssh.R
 		c.logRequest(req)
 		res, err := channel.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
-			log.Println(c.name, "failed to proxy request", err)
+			c.err(err).Msg("Failed to proxy request")
 			if req.WantReply {
 				err = req.Reply(false, nil)
 				if err != nil {
-					log.Println(c.name, "failed to reply", err)
+					c.err(err).Msg("Failed to reply to request")
 				}
 			}
 			continue
@@ -142,32 +151,23 @@ func (c *client) handleChannelRequest(channel ssh.Channel, reqChan <-chan *ssh.R
 		if req.WantReply {
 			err = req.Reply(res, nil)
 			if err != nil {
-				log.Println(c.name, "failed to reply", err)
+				c.err(err).Msg("Failed to reply to request")
 			}
 		}
 	}
-}
-func (c *client) logRequest(req *ssh.Request) {
-	switch req.Type {
-	case "exec":
-		log.Printf("%s exec %s\n", c.name, req.Payload)
-		return
-
-	}
-	log.Println(c.name, "channel request", req.Type)
 }
 
 // handleGlobalRequests proxies global requests from the client to an SSH server
 func (c *client) handleGlobalRequests(client *ssh.Client, reqChan <-chan *ssh.Request) {
 	for req := range reqChan {
-		log.Println(c.name, "request", req.Type)
+		c.logRequest(req)
 		ok, res, err := client.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
-			log.Println(c.name, "failed to proxy request", err)
+			c.err(err).Msg("Failed to proxy request")
 			if req.WantReply {
 				err = req.Reply(false, res)
 				if err != nil {
-					log.Println(c.name, "failed to reply", err)
+					c.err(err).Msg("Failed to reply to request")
 				}
 			}
 			continue
@@ -175,8 +175,18 @@ func (c *client) handleGlobalRequests(client *ssh.Client, reqChan <-chan *ssh.Re
 		if req.WantReply {
 			err = req.Reply(ok, res)
 			if err != nil {
-				log.Println(c.name, "failed to reply", err)
+				c.err(err).Msg("Failed to reply to request")
 			}
 		}
+	}
+}
+
+func (c *client) logRequest(req *ssh.Request) {
+	switch req.Type {
+	case "pty-req":
+		break
+		//todo
+	default:
+		c.info().Str("type", req.Type).Str("payload", string(req.Payload)).Bool("wantReply", req.WantReply).Msg("Received request")
 	}
 }

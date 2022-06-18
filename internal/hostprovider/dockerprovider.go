@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/rs/zerolog/log"
 )
 
 type DockerProvider struct {
@@ -40,6 +40,7 @@ func NewDockerProvider(hostt, image string, env []string, hostBuffer int) *Docke
 }
 
 func (d *DockerProvider) Start() error {
+	log.Info().Msg("Starting DockerProvider")
 	var err error
 	d.client, err = client.NewClientWithOpts(client.WithHost(d.host))
 	if err != nil {
@@ -74,7 +75,7 @@ func (d *DockerProvider) monitorHostBuf() {
 		for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
 			_, err := d.createAndRunContainer()
 			if err != nil {
-				log.Println("error while creating&running container", err)
+				log.Err(err).Msg("Error while creating&running container")
 			}
 		}
 
@@ -94,7 +95,6 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 		return nil, err
 	}
 
-	log.Printf("Container %s created", res.ID)
 	d.Lock()
 	d.containers[res.ID] = host.NewDHost(res.ID)
 	d.Unlock()
@@ -103,7 +103,6 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Container %s started", res.ID)
 
 	d.Lock()
 	h := d.containers[res.ID]
@@ -114,6 +113,7 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 }
 
 func (d *DockerProvider) Stop() error {
+	log.Info().Msg("Stopping DockerProvider")
 	d.running = false
 	var errs error
 	for ID := range d.containers {

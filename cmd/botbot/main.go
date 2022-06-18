@@ -1,15 +1,19 @@
 package main
 
 import (
-	"log"
 	"os"
 	"os/signal"
 
 	"github.com/alx99/botpot/internal/botpot/ssh"
 	"github.com/alx99/botpot/internal/hostprovider"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	provider := hostprovider.NewDockerProvider(
 		"unix:///var/run/docker.sock",
 		"linuxserver/openssh-server:latest",
@@ -26,13 +30,13 @@ func main() {
 	)
 	err := provider.Start()
 	if err != nil {
-		log.Println(err)
+		log.Fatal().Err(err).Msg("Could not start provider")
 	}
 
 	server := ssh.New(2000, provider)
 	err = server.Start()
 	if err != nil {
-		log.Println(err)
+		log.Fatal().Err(err).Msg("Could not start SSH Server")
 	}
 
 	c := make(chan os.Signal)
@@ -41,12 +45,11 @@ func main() {
 
 	err = server.Stop()
 	if err != nil {
-		log.Println(err)
+		log.Err(err).Msg("Could not stop SSH Server")
 	}
 
 	err = provider.Stop()
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		log.Err(err).Msg("Could not stop provider")
 	}
 }
