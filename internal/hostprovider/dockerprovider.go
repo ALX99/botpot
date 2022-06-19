@@ -13,29 +13,33 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/zerolog/log"
 )
 
 type DockerProvider struct {
 	sync.RWMutex
-	client     *client.Client
-	containers map[string]*host.DHost
-	host       string
-	image      string
-	env        []string
-	hostBuffer int
-	running    bool
+	client        *client.Client
+	containers    map[string]*host.DHost
+	host          string
+	hostBuffer    int
+	running       bool
+	config        container.Config
+	hostConfig    container.HostConfig
+	networkConfig network.NetworkingConfig
+	plaform       specs.Platform
 }
 
 // NewDockerProvider creates a new docker provider
-func NewDockerProvider(hostt, image string, env []string, hostBuffer int) *DockerProvider {
+func NewDockerProvider(hostt string, config container.Config, hostConfig container.HostConfig, networkConfig network.NetworkingConfig, platform specs.Platform, hostBuffer int) *DockerProvider {
 	return &DockerProvider{
-		host:       hostt,
-		image:      image,
-		env:        env,
-		containers: make(map[string]*host.DHost),
-		hostBuffer: hostBuffer,
+		host:          hostt,
+		config:        config,
+		hostConfig:    hostConfig,
+		networkConfig: networkConfig,
+		plaform:       platform,
+		containers:    make(map[string]*host.DHost),
+		hostBuffer:    hostBuffer,
 	}
 }
 
@@ -48,7 +52,7 @@ func (d *DockerProvider) Start() error {
 	}
 
 	// Pull image
-	readCloser, err := d.client.ImagePull(context.TODO(), d.image, types.ImagePullOptions{})
+	readCloser, err := d.client.ImagePull(context.TODO(), d.config.Image, types.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
@@ -84,13 +88,7 @@ func (d *DockerProvider) monitorHostBuf() {
 }
 
 func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
-	res, err := d.client.ContainerCreate(context.TODO(),
-		&container.Config{Image: d.image, Env: d.env},
-		&container.HostConfig{Privileged: false, PublishAllPorts: true},
-		&network.NetworkingConfig{},
-		&v1.Platform{},
-		"",
-	)
+	res, err := d.client.ContainerCreate(context.TODO(), &d.config, &d.hostConfig, &d.networkConfig, &d.plaform, "")
 	if err != nil {
 		return nil, err
 	}
