@@ -80,6 +80,7 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
+
 		// Handshake connection
 		sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
 		if err != nil {
@@ -93,20 +94,16 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
-		p := newProxy(host, "panda", "password")
-		// Handle new client
-		c := client{
-			p:           p,
-			conn:        sshConn,
-			channelchan: channelChan,
-			onDisconnect: func() {
-				err := s.provider.StopHost(ID)
-				if err != nil {
-					log.Err(err).Msg("onDisconnect failed")
-				}
-			},
-		}
-		c.handle(reqChan)
+		p := newSSHProxy(host, "panda", "password")
+
+		// Create new client
+		c := newClient(sshConn, p, channelChan, func() {
+			err := s.provider.StopHost(ID)
+			if err != nil {
+				log.Err(err).Msg("onDisconnect failed")
+			}
+		})
+		c.handle(reqChan) // Handle it
 	}
 }
 

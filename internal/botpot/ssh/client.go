@@ -3,8 +3,8 @@ package ssh
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
+	"net"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -12,27 +12,41 @@ import (
 )
 
 type client struct {
-	p            proxy
 	conn         ssh.Conn
-	channelchan  <-chan ssh.NewChannel
-	name         string
-	disconnected bool
-	onDisconnect func()
 	info         func() *zerolog.Event
+	channelchan  <-chan ssh.NewChannel
+	onDisconnect func()
 	debug        func() *zerolog.Event
 	err          func(err error) *zerolog.Event
+	p            sshProxy
+	rAddr        net.Addr
+	version      string
+	disconnected bool
+}
+
+func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel, onDisconnect func()) client {
+	c := client{
+		p:            p,
+		conn:         conn,
+		channelchan:  channelChan,
+		onDisconnect: onDisconnect,
+		rAddr:        conn.RemoteAddr(),
+		version:      string(conn.ClientVersion()),
+	}
+
+	// Setup loggers
+	c.info = func() *zerolog.Event { return log.Info().Str("version", c.version).Str("rAddr", c.rAddr.String()) }
+	c.debug = func() *zerolog.Event { return log.Debug().Str("version", c.version).Str("rAddr", c.rAddr.String()) }
+	c.err = func(err error) *zerolog.Event {
+		return log.Err(err).Str("version", c.version).Str("rAddr", c.rAddr.String())
+	}
+
+	c.info().Msg("Connected")
+	return c
 }
 
 // handle handles the client, and is non blocking
 func (c *client) handle(reqChan <-chan *ssh.Request) {
-	c.name = fmt.Sprintf("%s %s", c.conn.RemoteAddr(), c.conn.ClientVersion())
-	// Setup loggers
-	c.info = func() *zerolog.Event { return log.Info().Str("client", c.name) }
-	c.debug = func() *zerolog.Event { return log.Debug().Str("client", c.name) }
-	c.err = func(err error) *zerolog.Event { return log.Err(err).Str("client", c.name) }
-
-	c.info().Msg("Connected")
-
 	err := c.p.Connect()
 	if err != nil {
 		c.err(err).Msg("Could not connect to proxy")

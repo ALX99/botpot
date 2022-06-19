@@ -6,15 +6,17 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type proxy struct {
+// sshProxy represents an SSH connection where you can
+// proxy stuff from the client to
+type sshProxy struct {
 	cfg     *ssh.ClientConfig
 	client  *ssh.Client
 	session *ssh.Session
 	host    string
 }
 
-func newProxy(host, user, password string) proxy {
-	p := proxy{host: host}
+func newSSHProxy(host, user, password string) sshProxy {
+	p := sshProxy{host: host}
 
 	p.cfg = &ssh.ClientConfig{
 		User:            user,
@@ -27,7 +29,7 @@ func newProxy(host, user, password string) proxy {
 }
 
 // Connect connects to the SSH server with a backoff
-func (p *proxy) Connect() error {
+func (p *sshProxy) Connect() error {
 	var err error
 	connect := func() error {
 		p.client, err = ssh.Dial("tcp", p.host, p.cfg)
@@ -54,20 +56,20 @@ func (p *proxy) Connect() error {
 
 // Wait blocks until the connection has shut down, and returns the
 // error causing the shutdown.
-func (p *proxy) Wait() error {
+func (p *sshProxy) Wait() error {
 	return p.client.Wait()
 }
 
-func (p *proxy) openChannel(name string, data []byte) (ssh.Channel, <-chan *ssh.Request, error) {
+func (p *sshProxy) openChannel(name string, data []byte) (ssh.Channel, <-chan *ssh.Request, error) {
 	return p.client.OpenChannel(name, data)
 }
 
-func (p *proxy) sendRequest(name string, wantReply bool, payload []byte) (bool, error) {
+func (p *sshProxy) sendRequest(name string, wantReply bool, payload []byte) (bool, error) {
 	return p.session.SendRequest(name, wantReply, payload)
 }
 
 // Disconnect disconnects from the SSH server
-func (p *proxy) Disconnect() error {
+func (p *sshProxy) Disconnect() error {
 	err1 := p.session.Close()
 	err2 := p.client.Close()
 	if err1 != nil {
