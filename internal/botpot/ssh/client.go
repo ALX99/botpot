@@ -152,12 +152,18 @@ func (c *client) handleChannelRequest(channel ssh.Channel, reqChan <-chan *ssh.R
 					c.err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 				}
 			}
-			continue
+		} else {
+			if req.WantReply {
+				err = req.Reply(res, nil)
+				if err != nil {
+					c.err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
+				}
+			}
 		}
-		if req.WantReply {
-			err = req.Reply(res, nil)
-			if err != nil {
-				c.err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
+		// https://datatracker.ietf.org/doc/html/rfc4254#section-6.10
+		if req.Type == "exit-status" && !fromClient {
+			if err = channel.Close(); err != nil {
+				c.err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 			}
 		}
 	}
