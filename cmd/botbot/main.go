@@ -4,10 +4,12 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/alx99/botpot/internal/botpot/ssh"
 	"github.com/alx99/botpot/internal/hostprovider"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/jackc/pgx"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -35,14 +37,25 @@ func main() {
 		specs.Platform{},
 		1,
 	)
+	sshServer := ssh.New(2000, provider)
+	db := db.NewDB(pgx.ConnConfig{
+		Host:     "127.0.0.1",
+		Port:     5432,
+		User:     "postgres",
+		Password: "example",
+	})
 
-	err := provider.Start()
+	err := db.Start()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not start database")
+	}
+
+	err = provider.Start()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start provider")
 	}
 
-	server := ssh.New(2000, provider)
-	err = server.Start()
+	err = sshServer.Start()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start SSH Server")
 	}
@@ -51,7 +64,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, os.Kill)
 	<-c
 
-	err = server.Stop()
+	err = sshServer.Stop()
 	if err != nil {
 		log.Err(err).Msg("Could not stop SSH Server")
 	}
@@ -59,5 +72,10 @@ func main() {
 	err = provider.Stop()
 	if err != nil {
 		log.Err(err).Msg("Could not stop provider")
+	}
+
+	err = db.Stop()
+	if err != nil {
+		log.Err(err).Msg("Could not stop database")
 	}
 }
