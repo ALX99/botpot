@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -99,35 +100,29 @@ func (c *client) handleChannels() {
 
 // handleChannel handles a channel from a client
 func (c *client) handleChannel(clientChan, proxyChan ssh.Channel) {
-	proxyFunc := func(read, write func([]byte) (int, error), rclose, wclose func() error, fromClient bool) {
-		for !c.disconnected {
-			b := make([]byte, 1024)
-			i, err := read(b)
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					c.debug().Bool("fromClient", fromClient).Int("bytesRead", i).Msg("EOF read")
-					wclose()
-					return
-				}
-				c.err(err).Bool("fromClient", fromClient).Msg("Failed to read")
-				continue
+	proxyFunc := func(read io.Reader, write io.Writer, rclose, wclose func() error, fromClient bool) {
+		var buf bytes.Buffer
+		read = io.TeeReader(read, &buf)
+		n, err := io.Copy(write, read)
+		if err != nil {
+			// Try to close both ios if we get an EOF error
+			// and ignore errors
+			if errors.Is(err, io.EOF) {
+				rclose()
+				wclose()
 			}
-
-			i, err = write(b)
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					c.debug().Bool("fromClient", fromClient).Int("bytesRead", i).Msg("EOF read")
-					rclose()
-					return
-				}
-				c.err(err).Bool("fromClient", fromClient).Msg("Failed to read")
-			}
+			c.err(err).Bool("fromClient", fromClient).Msg("Failed to copy")
+		} else {
+			c.debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send()
+		}
+		if n > 0 {
+			c.debug().Bool("fromClient", fromClient).Str("data", string(buf.Bytes())).Send()
 		}
 	}
-	go proxyFunc(clientChan.Read, proxyChan.Write, clientChan.Close, proxyChan.Close, true)
-	go proxyFunc(clientChan.Stderr().Read, proxyChan.Stderr().Write, clientChan.Close, proxyChan.Close, true)
-	go proxyFunc(proxyChan.Read, clientChan.Write, proxyChan.Close, clientChan.Close, false)
-	go proxyFunc(proxyChan.Stderr().Read, clientChan.Stderr().Write, proxyChan.Close, clientChan.Close, false)
+	go proxyFunc(clientChan, proxyChan, clientChan.Close, proxyChan.Close, true)
+	go proxyFunc(clientChan.Stderr(), proxyChan.Stderr(), clientChan.Close, proxyChan.Close, true)
+	go proxyFunc(proxyChan, clientChan, proxyChan.Close, clientChan.Close, false)
+	go proxyFunc(proxyChan.Stderr(), clientChan.Stderr(), proxyChan.Close, clientChan.Close, false)
 }
 
 // handleChannelRequest proxies requests between an SSH server and an SSH client
