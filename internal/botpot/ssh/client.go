@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 
+	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
@@ -13,44 +14,46 @@ import (
 
 type client struct {
 	conn         ssh.Conn
-	info         func() *zerolog.Event
+	rAddr        net.Addr
 	channelchan  <-chan ssh.NewChannel
-	onDisconnect func()
 	debug        func() *zerolog.Event
 	err          func(err error) *zerolog.Event
+	info         func() *zerolog.Event
 	p            sshProxy
-	rAddr        net.Addr
-	version      string
+	session      Session
 	disconnected bool
 }
 
-func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel, onDisconnect func()) client {
+func newClient(conn ssh.Conn, p sshProxy, database *db.DB, channelChan <-chan ssh.NewChannel) client {
 	c := client{
-		p:            p,
-		conn:         conn,
-		channelchan:  channelChan,
-		onDisconnect: onDisconnect,
-		rAddr:        conn.RemoteAddr(),
-		version:      string(conn.ClientVersion()),
+		p:           p,
+		conn:        conn,
+		channelchan: channelChan,
+		rAddr:       conn.RemoteAddr(),
+		session:     NewSession(conn.RemoteAddr(), conn.LocalAddr(), string(conn.ClientVersion())),
 	}
 
 	// Setup loggers
-	c.info = func() *zerolog.Event { return log.Info().Str("version", c.version).Str("rAddr", c.rAddr.String()) }
-	c.debug = func() *zerolog.Event { return log.Debug().Str("version", c.version).Str("rAddr", c.rAddr.String()) }
+	c.info = func() *zerolog.Event {
+		return log.Info().Str("version", c.session.version).Str("rAddr", c.rAddr.String())
+	}
+	c.debug = func() *zerolog.Event {
+		return log.Debug().Str("version", c.session.version).Str("rAddr", c.rAddr.String())
+	}
 	c.err = func(err error) *zerolog.Event {
-		return log.Err(err).Str("version", c.version).Str("rAddr", c.rAddr.String())
+		return log.Err(err).Str("version", c.session.version).Str("rAddr", c.rAddr.String())
 	}
 
 	c.info().Msg("Connected")
 	return c
 }
 
-// handle handles the client, and is non blocking
+// handle handles the client and blocks until client has disconnected
 func (c *client) handle(reqChan <-chan *ssh.Request) {
 	err := c.p.Connect()
 	if err != nil {
 		c.err(err).Msg("Could not connect to proxy")
-		c.disconnect()
+		c.conn.Close()
 		return
 	}
 
@@ -58,33 +61,32 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	go c.handleChannels()
 	go c.handleGlobalRequests(c.p.client, reqChan, true) // client to proxy
 
-	go func() {
-		c.conn.Wait()
-		c.disconnected = true
-		c.info().Msg("Disconnected")
-		err = c.p.Disconnect()
-		if err != nil {
-			c.err(err).Msg("Error while disconnecting proxy")
-		}
-		c.onDisconnect()
-	}()
-
+	// Wait for proxy to disconnect
 	go func() {
 		c.p.Wait()
 		if c.disconnected {
 			return
 		}
 		c.err(errors.New("proxy disconnected without client")).Msg("Something went wrong")
-		err := c.disconnect()
+
+		// Disconnect client, something has gone wrong
+		err := c.conn.Close()
 		if err != nil {
 			c.err(err).Msg("Error while disconnecting client")
 		}
 		c.disconnected = true
 	}()
-}
 
-func (c *client) disconnect() error {
-	return c.conn.Close()
+	// Wait for client to disconnect
+	c.conn.Wait()
+	c.disconnected = true
+
+	c.session.Stop()
+
+	err = c.p.Disconnect()
+	if err != nil {
+		c.err(err).Msg("Error while disconnecting proxy")
+	}
 }
 
 // handleChannels handles channel requests from the client

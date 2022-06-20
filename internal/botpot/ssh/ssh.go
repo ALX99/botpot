@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 
+	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/alx99/botpot/internal/hostprovider"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
@@ -14,15 +15,17 @@ type Server struct {
 	l         net.Listener
 	provider  hostprovider.SSH
 	cfg       *ssh.ServerConfig
+	db        *db.DB
 	port      int
 	lIsClosed bool
 }
 
 // New creates a new SSH server
-func New(port int, provider hostprovider.SSH) *Server {
+func New(port int, provider hostprovider.SSH, database *db.DB) *Server {
 	s := &Server{
 		port:     port,
 		provider: provider,
+		db:       database,
 	}
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
@@ -97,13 +100,22 @@ func (s *Server) loop() {
 		p := newSSHProxy(host, "panda", "password")
 
 		// Create new client
-		c := newClient(sshConn, p, channelChan, func() {
+		c := newClient(sshConn, p, s.db, channelChan)
+		// Handle client
+		go func() {
+			// Blocks until client disconnects
+			c.handle(reqChan)
+
 			err := s.provider.StopHost(ID)
 			if err != nil {
-				log.Err(err).Msg("onDisconnect failed")
+				log.Err(err).Msgf("Could not stop host %s", ID)
 			}
-		})
-		c.handle(reqChan) // Handle it
+
+			err = s.db.BeginTx(c.session.Insert)
+			if err != nil {
+				c.err(err).Msg("Could not insert data into DB")
+			}
+		}()
 	}
 }
 

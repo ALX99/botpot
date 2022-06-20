@@ -1,7 +1,9 @@
 package db
 
 import (
-	"github.com/jackc/pgx"
+	"context"
+
+	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog/log"
 )
 
@@ -10,22 +12,28 @@ import (
 type DB struct {
 	conn *pgx.Conn
 	cfg  pgx.ConnConfig
+	url  string
 }
 
 // NewDB creates a new DB
-func NewDB(cfg pgx.ConnConfig) DB {
-	log.Info().Msg("Starting Database")
-	return DB{cfg: cfg}
+func NewDB(url string) DB {
+	return DB{url: url}
 }
 
 // Start connects to the DB
 func (db *DB) Start() error {
+	log.Info().Msg("Starting Database")
 	var err error
-	db.conn, err = pgx.Connect(db.cfg)
+	db.conn, err = pgx.Connect(context.TODO(), db.url)
 	return err
 }
 
 // Stop disconnects from the DB
 func (db *DB) Stop() error {
-	return db.conn.Close()
+	log.Info().Msg("Stopping Database")
+	return db.conn.Close(context.TODO())
+}
+
+func (db *DB) BeginTx(f func(pgx.Tx) error) error {
+	return db.conn.BeginTxFunc(context.Background(), pgx.TxOptions{}, f)
 }
