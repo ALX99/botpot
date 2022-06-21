@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/alx99/botpot/internal/botpot/ssh/channel"
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 )
@@ -19,6 +20,7 @@ type Session struct {
 	l       zerolog.Logger
 	srcPort int
 	dstPort int
+	chs     []*channel.Channel
 }
 type ipInfo struct {
 	ip   string
@@ -31,6 +33,7 @@ func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session
 		start:   time.Now(),
 		version: version,
 		l:       l,
+		chs:     []*channel.Channel{},
 	}
 
 	i := getIPInfo(srcIP)
@@ -41,6 +44,11 @@ func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session
 	s.dstPort = i.port
 
 	return s
+}
+
+// AddChannel adds a channel to the session
+func (s *Session) AddChannel(ch *channel.Channel) {
+	s.chs = append(s.chs, ch)
 }
 
 // Insert tries to insert the data into the database
@@ -58,8 +66,18 @@ func (s *Session) Insert(tx pgx.Tx) error {
 	INSERT INTO Session(version, src_ip, src_port, dst_ip, dst_port, start_ts, end_ts)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 `, s.version, s.srcIP, s.srcPort, s.dstIP, s.dstPort, s.start, s.end)
+	if err != nil {
+		return err
+	}
 
-	return err
+	for _, ch := range s.chs {
+		err = ch.Insert(tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Stop stops an active session

@@ -86,8 +86,8 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 // handleChannels handles channel requests from the client
 func (c *client) handleChannels() {
 	for chanReq := range c.channelchan {
-		// todo
-		channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p.client, c.l)
+		ch := channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p.client, c.l)
+		c.s.AddChannel(ch)
 	}
 }
 

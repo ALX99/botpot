@@ -19,3 +19,12 @@ CREATE TABLE Session (
     ),
     CONSTRAINT end_time_after_start_time CHECK (start_ts <= end_ts)
 );
+CREATE TABLE Channel (
+    id int NOT NULL,
+    session_id int NOT NULL,
+    start_ts timestamp NOT NULL,
+    end_ts timestamp NOT NULL,
+    PRIMARY KEY (id, session_id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id) REFERENCES Session (id),
+    CONSTRAINT end_time_after_start_time CHECK (start_ts <= end_ts)
+);

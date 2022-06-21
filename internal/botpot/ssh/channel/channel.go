@@ -2,25 +2,31 @@ package channel
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
+	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 )
 
 type Channel struct {
-	id uint32
-	p  *ssh.Client
-	l  zerolog.Logger
+	start time.Time
+	end   time.Time
+	id    uint32
+	p     *ssh.Client
+	l     zerolog.Logger
 }
 
 // NewChannel creates a new channel
-func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logger) Channel {
-	ch := Channel{
-		id: id,
-		p:  proxy,
-		l:  l.With().Uint32("chID", id).Logger(),
+func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logger) *Channel {
+	ch := &Channel{
+		id:    id,
+		p:     proxy,
+		l:     l.With().Uint32("chID", id).Logger(),
+		start: time.Now(),
 	}
 
 	ch.handle(req)
@@ -110,6 +116,22 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 			}
 		}
 	}
+	// If we reach this point it means that the reqChan
+	// client has been closed and thus the channel
+	// TODO read RFC
+	if fromClient {
+		c.end = time.Now()
+	}
+}
+
+// Insert tries to insert the data into the database
+func (c *Channel) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO Channel(id, session_id, start_ts, end_ts)
+		SELECT $1, MAX(Session.id), $2, $3
+			FROM Session
+`, c.id, c.start, c.end)
+	return err
 }
 
 func (c *Channel) logRequest(req *ssh.Request, fromClient bool) {
