@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 // Session represents the database table
@@ -16,6 +16,7 @@ type Session struct {
 	srcIP   string
 	dstIP   string
 	version string
+	l       zerolog.Logger
 	srcPort int
 	dstPort int
 }
@@ -25,10 +26,11 @@ type ipInfo struct {
 }
 
 // NewSession creates a new session
-func NewSession(srcIP, dstIP net.Addr, version string) Session {
+func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session {
 	s := Session{
 		start:   time.Now(),
 		version: version,
+		l:       l,
 	}
 
 	i := getIPInfo(srcIP)
@@ -62,7 +64,7 @@ func (s *Session) Insert(tx pgx.Tx) error {
 
 // Stop stops an active session
 func (s *Session) Stop() {
-	log.Info().Str("srcIP", s.srcIP).Msg("Disconnected")
+	s.l.Info().Msg("Disconnected")
 	s.end = time.Now()
 }
 

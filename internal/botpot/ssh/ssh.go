@@ -100,7 +100,7 @@ func (s *Server) loop() {
 		p := newSSHProxy(host, "panda", "password")
 
 		// Create new client
-		c := newClient(sshConn, p, s.db, channelChan)
+		c := newClient(sshConn, p, channelChan)
 		// Handle client
 		go func() {
 			// Blocks until client disconnects
@@ -113,7 +113,7 @@ func (s *Server) loop() {
 
 			err = s.db.BeginTx(c.session.Insert)
 			if err != nil {
-				c.err(err).Msg("Could not insert data into DB")
+				c.l.Err(err).Msg("Could not insert data into DB")
 			}
 		}()
 	}
