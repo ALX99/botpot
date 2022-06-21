@@ -10,6 +10,23 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Request types used in sessions - RFC 4254 6.X
+const (
+	SessionRequest               = "session"       // RFC 4254 6.1
+	PTYRequest                   = "pty-req"       // RFC 4254 6.2
+	X11Request                   = "x11-req"       // RFC 4254 6.3.1
+	X11ChannelRequest            = "x11"           // RFC 4254 6.3.2
+	EnvironmentRequest           = "env"           // RFC 4254 6.4
+	ShellRequest                 = "shell"         // RFC 4254 6.5
+	ExecRequest                  = "exec"          // RFC 4254 6.5
+	SubsystemRequest             = "subsystem"     // RFC 4254 6.5
+	WindowDimensionChangeRequest = "window-change" // RFC 4254 6.7
+	FlowControlRequest           = "xon-off"       // RFC 4254 6.8
+	SignalRequest                = "signal"        // RFC 4254 6.9
+	ExitStatusRequest            = "exit-status"   // RFC 4254 6.10
+	ExitSignalRequest            = "exit-signal"   // RFC 4254 6.10
+)
+
 type request interface {
 	Insert(tx pgx.Tx) error
 }
@@ -27,6 +44,14 @@ type ptyReq struct {
 	fromClient bool
 }
 
+type execReq struct {
+	command string
+
+	ts         time.Time
+	chID       uint32
+	fromClient bool
+}
+
 func (r *ptyReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
 	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist)
@@ -36,9 +61,18 @@ func (r *ptyReq) Insert(tx pgx.Tx) error {
 	return err
 }
 
+func (r *execReq) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO ExecRequest(session_id, channel_id, ts, command)
+		SELECT MAX(Session.id), $1, $2, $3
+			FROM Session
+`, r.chID, r.ts, r.command)
+	return err
+}
+
 func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger) (request, error) {
 	switch req.Type {
-	case "pty-req": // RFC 4254 Section 6.2.
+	case PTYRequest:
 		r := struct {
 			Term     string
 			Columns  uint32
@@ -47,8 +81,7 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Height   uint32
 			Modelist string
 		}{}
-		err := ssh.Unmarshal(req.Payload, &r)
-		if err != nil {
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
 			return nil, err
 		}
 		l.Info().
@@ -58,6 +91,7 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Uint32("width", r.Width).
 			Uint32("height", r.Height).
 			Str("modeList", r.Modelist).
+			Str("type", req.Type).
 			Msg("Got channel request")
 		return &ptyReq{
 			term:       r.Term,
@@ -70,7 +104,21 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			ts:         time.Now(),
 			chID:       chID,
 		}, nil
-
+	case ExecRequest:
+		r := struct{ Command string }{}
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return nil, err
+		}
+		l.Info().
+			Str("command", r.Command).
+			Str("type", req.Type).
+			Msg("Got channel request")
+		return &execReq{
+			command:    r.Command,
+			ts:         time.Now(),
+			chID:       chID,
+			fromClient: fromClient,
+		}, nil
 	default:
 		return nil, fmt.Errorf("request %q not supported", req.Type)
 

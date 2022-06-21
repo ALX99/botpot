@@ -41,3 +41,11 @@ CREATE TABLE PTYRequest (
     PRIMARY KEY (session_id, channel_id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
+CREATE TABLE ExecRequest (
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamp NOT NULL,
+    command text NOT NULL,
+    PRIMARY KEY (session_id, channel_id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+);
