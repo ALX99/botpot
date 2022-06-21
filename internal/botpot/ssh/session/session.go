@@ -1,4 +1,4 @@
-package ssh
+package session
 
 import (
 	"context"

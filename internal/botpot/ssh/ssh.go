@@ -111,7 +111,7 @@ func (s *Server) loop() {
 				log.Err(err).Msgf("Could not stop host %s", ID)
 			}
 
-			err = s.db.BeginTx(c.session.Insert)
+			err = s.db.BeginTx(c.s.Insert)
 			if err != nil {
 				c.l.Err(err).Msg("Could not insert data into DB")
 			}

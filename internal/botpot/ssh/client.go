@@ -5,6 +5,8 @@ import (
 	"net"
 	"sync/atomic"
 
+	"github.com/alx99/botpot/internal/botpot/ssh/channel"
+	"github.com/alx99/botpot/internal/botpot/ssh/session"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
@@ -16,7 +18,7 @@ type client struct {
 	channelchan  <-chan ssh.NewChannel
 	p            sshProxy
 	l            zerolog.Logger
-	session      Session
+	s            session.Session
 	chanCounter  uint32
 	disconnected bool
 }
@@ -26,13 +28,13 @@ func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel) cli
 		Str("version", string(conn.ClientVersion())).
 		Str("rAddr", conn.RemoteAddr().String()).
 		Logger()
-	s := NewSession(conn.RemoteAddr(), conn.LocalAddr(), string(conn.ClientVersion()), l)
+	s := session.NewSession(conn.RemoteAddr(), conn.LocalAddr(), string(conn.ClientVersion()), l)
 	c := client{
 		p:           p,
 		conn:        conn,
 		channelchan: channelChan,
 		rAddr:       conn.RemoteAddr(),
-		session:     s,
+		s:           s,
 		l:           l,
 	}
 
@@ -73,7 +75,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	c.conn.Wait()
 	c.disconnected = true
 
-	c.session.Stop()
+	c.s.Stop()
 
 	err = c.p.Disconnect()
 	if err != nil {
@@ -85,7 +87,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 func (c *client) handleChannels() {
 	for chanReq := range c.channelchan {
 		// todo
-		NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p, c.l)
+		channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p.client, c.l)
 	}
 }
 

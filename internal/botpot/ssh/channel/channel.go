@@ -1,4 +1,4 @@
-package ssh
+package channel
 
 import (
 	"bytes"
@@ -11,12 +11,12 @@ import (
 
 type Channel struct {
 	id uint32
-	p  sshProxy
+	p  *ssh.Client
 	l  zerolog.Logger
 }
 
 // NewChannel creates a new channel
-func NewChannel(id uint32, req ssh.NewChannel, proxy sshProxy, l zerolog.Logger) Channel {
+func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logger) Channel {
 	ch := Channel{
 		id: id,
 		p:  proxy,
@@ -33,7 +33,7 @@ func NewChannel(id uint32, req ssh.NewChannel, proxy sshProxy, l zerolog.Logger)
 func (c *Channel) handle(chanReq ssh.NewChannel) {
 	c.l.Info().Str("type", chanReq.ChannelType()).Str("extraData", string(chanReq.ExtraData())).Msg("Wants to open channel")
 
-	proxyChan, proxyReqChan, err := c.p.openChannel(chanReq.ChannelType(), chanReq.ExtraData())
+	proxyChan, proxyReqChan, err := c.p.OpenChannel(chanReq.ChannelType(), chanReq.ExtraData())
 	if err != nil {
 		c.l.Err(err).Msg("Could not open channel")
 		err = chanReq.Reject(ssh.ConnectionFailed, "")

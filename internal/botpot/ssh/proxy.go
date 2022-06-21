@@ -60,14 +60,6 @@ func (p *sshProxy) Wait() error {
 	return p.client.Wait()
 }
 
-func (p *sshProxy) openChannel(name string, data []byte) (ssh.Channel, <-chan *ssh.Request, error) {
-	return p.client.OpenChannel(name, data)
-}
-
-func (p *sshProxy) sendRequest(name string, wantReply bool, payload []byte) (bool, error) {
-	return p.session.SendRequest(name, wantReply, payload)
-}
-
 // Disconnect disconnects from the SSH server
 func (p *sshProxy) Disconnect() error {
 	err1 := p.session.Close()
