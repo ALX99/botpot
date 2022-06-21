@@ -18,6 +18,7 @@ type Channel struct {
 	id    uint32
 	p     *ssh.Client
 	l     zerolog.Logger
+	reqs  []request
 }
 
 // NewChannel creates a new channel
@@ -27,6 +28,7 @@ func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logg
 		p:     proxy,
 		l:     l.With().Uint32("chID", id).Logger(),
 		start: time.Now(),
+		reqs:  []request{},
 	}
 
 	ch.handle(req)
@@ -90,7 +92,13 @@ func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
 // handleRequest proxies requests between an SSH server and an SSH client
 func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request, fromClient bool) {
 	for req := range reqChan {
-		c.logRequest(req, fromClient)
+		parsedReq, err := newRequest(req, fromClient, c.id, c.l.With().Bool("fromClient", fromClient).Logger())
+		if err != nil {
+			c.l.Err(err).Bool("fromClient", fromClient).Msg("Error while creating a new Request")
+		} else {
+			c.reqs = append(c.reqs, parsedReq)
+		}
+
 		res, err := channel.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to proxy request")
@@ -131,15 +139,13 @@ func (c *Channel) Insert(tx pgx.Tx) error {
 		SELECT $1, MAX(Session.id), $2, $3
 			FROM Session
 `, c.id, c.start, c.end)
-	return err
-}
 
-func (c *Channel) logRequest(req *ssh.Request, fromClient bool) {
-	switch req.Type {
-	case "pty-req":
-		break
-		//todo
-	default:
-		c.l.Info().Bool("fromClient", fromClient).Str("type", req.Type).Str("payload", string(req.Payload)).Bool("wantReply", req.WantReply).Msg("Received request")
+	for _, req := range c.reqs {
+		err = req.Insert(tx)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

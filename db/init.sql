@@ -28,3 +28,16 @@ CREATE TABLE Channel (
     CONSTRAINT fk_id FOREIGN KEY (session_id) REFERENCES Session (id),
     CONSTRAINT end_time_after_start_time CHECK (start_ts <= end_ts)
 );
+CREATE TABLE PTYRequest (
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamp NOT NULL,
+    term text NOT NULL,
+    columns int NOT NULL,
+    rows int NOT NULL,
+    width int NOT NULL,
+    height int NOT NULL,
+    modelist bytea NOT NULL,
+    PRIMARY KEY (session_id, channel_id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+);
