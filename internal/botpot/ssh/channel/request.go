@@ -30,6 +30,11 @@ const (
 type request interface {
 	Insert(tx pgx.Tx) error
 }
+type commonReq struct {
+	ts         time.Time
+	chID       uint32
+	fromClient bool
+}
 
 type ptyReq struct {
 	term     string
@@ -39,25 +44,19 @@ type ptyReq struct {
 	width    uint32
 	height   uint32
 
-	ts         time.Time
-	chID       uint32
-	fromClient bool
+	c commonReq
 }
 
 type execReq struct {
 	command string
 
-	ts         time.Time
-	chID       uint32
-	fromClient bool
+	c commonReq
 }
 
 type exitStatusReq struct {
 	exitStatus uint32
 
-	ts         time.Time
-	chID       uint32
-	fromClient bool
+	c commonReq
 }
 
 func (r *ptyReq) Insert(tx pgx.Tx) error {
@@ -65,7 +64,7 @@ func (r *ptyReq) Insert(tx pgx.Tx) error {
 	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist, from_client)
 		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7, $8, $9
 			FROM Session
-`, r.chID, r.ts, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist), r.fromClient)
+`, r.c.chID, r.c.ts, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist), r.c.fromClient)
 	return err
 }
 
@@ -74,7 +73,7 @@ func (r *execReq) Insert(tx pgx.Tx) error {
 	INSERT INTO ExecRequest(session_id, channel_id, ts, command, from_client)
 		SELECT MAX(Session.id), $1, $2, $3, $4
 			FROM Session
-`, r.chID, r.ts, r.command, r.fromClient)
+`, r.c.chID, r.c.ts, r.command, r.c.fromClient)
 	return err
 }
 
@@ -83,11 +82,12 @@ func (r *exitStatusReq) Insert(tx pgx.Tx) error {
 	INSERT INTO ExitStatusRequest(session_id, channel_id, ts, exit_status, from_client)
 		SELECT MAX(Session.id), $1, $2, $3, $4
 			FROM Session
-`, r.chID, r.ts, r.exitStatus, r.fromClient)
+`, r.c.chID, r.c.ts, r.exitStatus, r.c.fromClient)
 	return err
 }
 
 func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger) (request, error) {
+	c := commonReq{ts: time.Now(), chID: chID, fromClient: fromClient}
 	switch req.Type {
 	case PTYRequest:
 		r := struct {
@@ -111,15 +111,13 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Str("type", req.Type).
 			Msg("Got channel request")
 		return &ptyReq{
-			term:       r.Term,
-			modelist:   r.Modelist,
-			columns:    r.Columns,
-			rows:       r.Rows,
-			width:      r.Width,
-			height:     r.Height,
-			fromClient: fromClient,
-			ts:         time.Now(),
-			chID:       chID,
+			term:     r.Term,
+			modelist: r.Modelist,
+			columns:  r.Columns,
+			rows:     r.Rows,
+			width:    r.Width,
+			height:   r.Height,
+			c:        c,
 		}, nil
 	case ExecRequest:
 		r := struct{ Command string }{}
@@ -131,10 +129,8 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Str("type", req.Type).
 			Msg("Got channel request")
 		return &execReq{
-			command:    r.Command,
-			ts:         time.Now(),
-			chID:       chID,
-			fromClient: fromClient,
+			command: r.Command,
+			c:       c,
 		}, nil
 	case ExitStatusRequest:
 		r := struct{ ExitStatus uint32 }{}
@@ -147,9 +143,7 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Msg("Got channel request")
 		return &exitStatusReq{
 			exitStatus: r.ExitStatus,
-			ts:         time.Now(),
-			chID:       chID,
-			fromClient: fromClient,
+			c:          c,
 		}, nil
 	default:
 		return nil, fmt.Errorf("request %q not supported", req.Type)
