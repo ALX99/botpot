@@ -29,42 +29,59 @@ CREATE TABLE Channel (
     CONSTRAINT end_time_after_start_time CHECK (start_ts <= end_ts)
 );
 CREATE TABLE PTYRequest (
+    id serial NOT NULL,
     session_id int NOT NULL,
     channel_id int NOT NULL,
     ts timestamp NOT NULL,
+    from_client boolean NOT NULL,
     term text NOT NULL,
     columns int NOT NULL,
     rows int NOT NULL,
     width int NOT NULL,
     height int NOT NULL,
     modelist bytea NOT NULL,
-    from_client boolean NOT NULL,
-    PRIMARY KEY (session_id, channel_id),
+    PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
 CREATE TABLE ExecRequest (
+    id serial NOT NULL,
     session_id int NOT NULL,
     channel_id int NOT NULL,
     ts timestamp NOT NULL,
-    command text NOT NULL,
     from_client boolean NOT NULL,
-    PRIMARY KEY (session_id, channel_id),
+    command text NOT NULL,
+    PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
 CREATE TABLE ExitStatusRequest (
+    id serial NOT NULL,
     session_id int NOT NULL,
     channel_id int NOT NULL,
     ts timestamp NOT NULL,
-    exit_status int NOT NULL,
     from_client boolean NOT NULL,
-    PRIMARY KEY (session_id, channel_id),
+    exit_status int NOT NULL,
+    PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
 CREATE TABLE ShellRequest (
+    id serial NOT NULL,
     session_id int NOT NULL,
     channel_id int NOT NULL,
     ts timestamp NOT NULL,
     from_client boolean NOT NULL,
-    PRIMARY KEY (session_id, channel_id),
+    PRIMARY KEY (session_id, channel_id, id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+);
+CREATE TABLE WindowDimensionChangeRequest (
+    id serial NOT NULL,
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamp NOT NULL,
+    from_client boolean NOT NULL,
+    columns int NOT NULL,
+    rows int NOT NULL,
+    width int NOT NULL,
+    height int NOT NULL,
+    PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
