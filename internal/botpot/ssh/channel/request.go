@@ -54,19 +54,19 @@ type execReq struct {
 
 func (r *ptyReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist)
-		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7, $8
+	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist, from_client)
+		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7, $8, $9
 			FROM Session
-`, r.chID, r.ts, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist))
+`, r.chID, r.ts, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist), r.fromClient)
 	return err
 }
 
 func (r *execReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ExecRequest(session_id, channel_id, ts, command)
-		SELECT MAX(Session.id), $1, $2, $3
+	INSERT INTO ExecRequest(session_id, channel_id, ts, command, from_client)
+		SELECT MAX(Session.id), $1, $2, $3, $4
 			FROM Session
-`, r.chID, r.ts, r.command)
+`, r.chID, r.ts, r.command, r.fromClient)
 	return err
 }
 

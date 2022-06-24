@@ -38,6 +38,7 @@ CREATE TABLE PTYRequest (
     width int NOT NULL,
     height int NOT NULL,
     modelist bytea NOT NULL,
+    from_client boolean NOT NULL,
     PRIMARY KEY (session_id, channel_id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
@@ -46,6 +47,7 @@ CREATE TABLE ExecRequest (
     channel_id int NOT NULL,
     ts timestamp NOT NULL,
     command text NOT NULL,
+    from_client boolean NOT NULL,
     PRIMARY KEY (session_id, channel_id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
