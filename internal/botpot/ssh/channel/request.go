@@ -59,6 +59,10 @@ type exitStatusReq struct {
 	c commonReq
 }
 
+type shellReq struct {
+	c commonReq
+}
+
 func (r *ptyReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
 	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist, from_client)
@@ -83,6 +87,15 @@ func (r *exitStatusReq) Insert(tx pgx.Tx) error {
 		SELECT MAX(Session.id), $1, $2, $3, $4
 			FROM Session
 `, r.c.chID, r.c.ts, r.exitStatus, r.c.fromClient)
+	return err
+}
+
+func (r *shellReq) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO ShellRequest(session_id, channel_id, ts, from_client)
+		SELECT MAX(Session.id), $1, $2, $3
+			FROM Session
+`, r.c.chID, r.c.ts, r.c.fromClient)
 	return err
 }
 
@@ -144,6 +157,13 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 		return &exitStatusReq{
 			exitStatus: r.ExitStatus,
 			c:          c,
+		}, nil
+	case ShellRequest:
+		l.Info().
+			Str("type", req.Type).
+			Msg("Got channel request")
+		return &shellReq{
+			c: c,
 		}, nil
 	default:
 		return nil, fmt.Errorf("request %q not supported", req.Type)

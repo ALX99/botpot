@@ -60,3 +60,11 @@ CREATE TABLE ExitStatusRequest (
     PRIMARY KEY (session_id, channel_id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
+CREATE TABLE ShellRequest (
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamp NOT NULL,
+    from_client boolean NOT NULL,
+    PRIMARY KEY (session_id, channel_id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+);
