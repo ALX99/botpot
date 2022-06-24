@@ -1,0 +1,10 @@
+botpot:
+  port: 2000
+  logLevel: "debug"
+  postgres:
+    # DSN URI postgres://USER:PASS@HOSTNAME:PORT/DBNAME
+    uri: "postgres://postgres:example@localhost:5432/postgres"
+
+  dockerprovider:
+    host: "unix:///var/run/docker.sock"
+    hostBuffer: 1

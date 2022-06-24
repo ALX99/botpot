@@ -3,7 +3,9 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 
+	"github.com/alx99/botpot/internal/botpot/config"
 	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/alx99/botpot/internal/botpot/ssh"
 	"github.com/alx99/botpot/internal/hostprovider"
@@ -12,14 +14,14 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/yaml.v3"
 )
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	cfg := setup()
 
 	provider := hostprovider.NewDockerProvider(
-		"unix:///var/run/docker.sock",
+		cfg.Botpot.Dockerprovider.Host,
 		container.Config{Image: "linuxserver/openssh-server:latest",
 			Env: []string{
 				"PUID=1000",
@@ -34,11 +36,11 @@ func main() {
 		container.HostConfig{Privileged: false, PublishAllPorts: true},
 		network.NetworkingConfig{},
 		specs.Platform{},
-		1,
+		cfg.Botpot.Dockerprovider.HostBuffer,
 	)
 
-	db := db.NewDB("postgres://postgres:example@localhost:5432/postgres")
-	sshServer := ssh.New(2000, provider, &db)
+	db := db.NewDB(cfg.Botpot.Postgres.URI)
+	sshServer := ssh.New(cfg.Botpot.Port, provider, &db)
 
 	err := db.Start()
 	if err != nil {
@@ -73,4 +75,34 @@ func main() {
 	if err != nil {
 		log.Err(err).Msg("Could not stop database")
 	}
+	log.Info().Msg("lolol")
+}
+
+func setup() config.Config {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	var cfg config.Config
+
+	b, err := os.ReadFile("./botpot.yaml")
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not read config file")
+	}
+
+	err = yaml.Unmarshal(b, &cfg)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not parse config yaml file")
+	}
+	switch strings.ToLower(cfg.Botpot.LogLevel) {
+	case "debug":
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	case "warn":
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case "error":
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	case "info":
+		fallthrough
+	default:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+	return cfg
 }
