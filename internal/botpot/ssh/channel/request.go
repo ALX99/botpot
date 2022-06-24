@@ -52,6 +52,14 @@ type execReq struct {
 	fromClient bool
 }
 
+type exitStatusReq struct {
+	exitStatus uint32
+
+	ts         time.Time
+	chID       uint32
+	fromClient bool
+}
+
 func (r *ptyReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
 	INSERT INTO PTYRequest(session_id, channel_id, ts, term, columns, rows, width, height, modelist, from_client)
@@ -67,6 +75,15 @@ func (r *execReq) Insert(tx pgx.Tx) error {
 		SELECT MAX(Session.id), $1, $2, $3, $4
 			FROM Session
 `, r.chID, r.ts, r.command, r.fromClient)
+	return err
+}
+
+func (r *exitStatusReq) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO ExitStatusRequest(session_id, channel_id, ts, exit_status, from_client)
+		SELECT MAX(Session.id), $1, $2, $3, $4
+			FROM Session
+`, r.chID, r.ts, r.exitStatus, r.fromClient)
 	return err
 }
 
@@ -115,6 +132,21 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Msg("Got channel request")
 		return &execReq{
 			command:    r.Command,
+			ts:         time.Now(),
+			chID:       chID,
+			fromClient: fromClient,
+		}, nil
+	case ExitStatusRequest:
+		r := struct{ ExitStatus uint32 }{}
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return nil, err
+		}
+		l.Info().
+			Uint32("exitStatus", r.ExitStatus).
+			Str("type", req.Type).
+			Msg("Got channel request")
+		return &exitStatusReq{
+			exitStatus: r.ExitStatus,
 			ts:         time.Now(),
 			chID:       chID,
 			fromClient: fromClient,
