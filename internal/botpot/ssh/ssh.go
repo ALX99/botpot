@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/alx99/botpot/internal/botpot/db"
-	"github.com/alx99/botpot/internal/hostprovider"
+	"github.com/alx99/botpot/internal/botpot/hostprovider"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
 )

@@ -7,8 +7,8 @@ import (
 
 	"github.com/alx99/botpot/internal/botpot/config"
 	"github.com/alx99/botpot/internal/botpot/db"
+	"github.com/alx99/botpot/internal/botpot/hostprovider"
 	"github.com/alx99/botpot/internal/botpot/ssh"
-	"github.com/alx99/botpot/internal/hostprovider"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"

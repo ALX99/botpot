@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alx99/botpot/internal/host"
+	"github.com/alx99/botpot/internal/botpot/host"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
