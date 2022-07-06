@@ -3,7 +3,7 @@ version: '3.5'
 services:
   db:
     build:
-      context: .
+      context: ./db/
       dockerfile: Dockerfile
     restart: always
     environment:

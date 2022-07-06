@@ -11,3 +11,6 @@ image: build-release
 
 run:
 	go run ./cmd/botpot/main.go
+
+clean:
+	rm -rf ./build

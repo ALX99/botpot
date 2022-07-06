@@ -8,7 +8,6 @@ require (
 	github.com/opencontainers/image-spec v1.0.2
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -38,5 +37,6 @@ require (
 	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.3.0 // indirect
 )
