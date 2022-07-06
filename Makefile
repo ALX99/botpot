@@ -12,5 +12,8 @@ image: build-release
 run:
 	go run ./cmd/botpot/main.go
 
+key:
+	openssl genpkey -algorithm ed25519 -out key
+
 clean:
 	rm -rf ./build

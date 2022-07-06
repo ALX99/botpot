@@ -8,5 +8,24 @@ services:
     restart: always
     environment:
       POSTGRES_PASSWORD: example
-    ports:
-      - "127.0.0.1:5432:5432"
+    network_mode: host
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    # networks:
+    #   - default
+  botpot:
+    image: botpot:latest
+    restart: always
+    env_file: botpot.env
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./key:/key:ro"
+    network_mode: host
+    # ports:
+    #   - "127.0.0.1:2000:2000"
+    # networks:
+    #   - default
+
+networks:
+  default:
+    driver: bridge
