@@ -12,8 +12,13 @@ image: build-release
 run:
 	go run ./cmd/botpot/main.go
 
-key:
-	openssl genpkey -algorithm ed25519 -out key
+keys: ed25519.pem rsa.pem
+	ssh-keygen -t rsa -N "" -f rsa.pem
+	ssh-keygen -t ed25519 -N "" -f ed25519.pem
+	ssh-keygen -t ecdsa -b 256 -N "" -f ecdsa256.pem
+	ssh-keygen -t ecdsa -b 384 -N "" -f ecdsa384.pem
+	ssh-keygen -t ecdsa -b 521 -N "" -f ecdsa521.pem
+
 
 clean:
 	rm -rf ./build

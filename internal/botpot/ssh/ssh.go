@@ -30,7 +30,7 @@ func New(port int, provider hostprovider.SSH, database *db.DB) *Server {
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
 		MaxAuthTries:     999,
-		ServerVersion:    "SSH-2.0-OpenSSH_8.8",
+		ServerVersion:    "SSH-2.0-OpenSSH_8.9p1 Ubuntu 3",
 		PasswordCallback: s.pwCallback,
 	}
 
@@ -40,12 +40,15 @@ func New(port int, provider hostprovider.SSH, database *db.DB) *Server {
 // Start starts the SSH server
 func (s *Server) Start() error {
 	log.Info().Msg("Starting SSH Server")
-	hostKey, err := readHostKey("./key")
-	if err != nil {
-		return err
+	for _, key := range []string{"./ed25519.pem", "./rsa.pem", "./ecdsa256.pem", "./ecdsa384.pem", "./ecdsa521.pem"} {
+		hostKey, err := readHostKey(key)
+		if err != nil {
+			return err
+		}
+		s.cfg.AddHostKey(hostKey)
 	}
-	s.cfg.AddHostKey(hostKey)
 
+	var err error
 	s.l, err = net.Listen("tcp", ":"+strconv.Itoa(s.port))
 	if err != nil {
 		return err
