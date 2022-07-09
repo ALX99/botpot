@@ -133,6 +133,21 @@ func (r *envReq) Insert(tx pgx.Tx) error {
 	return err
 }
 
+type subSystemRequest struct {
+	Name string
+
+	c commonReq
+}
+
+func (r *subSystemRequest) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO SubSystemRequest(session_id, channel_id, ts, from_client, name)
+		SELECT MAX(Session.id), $1, $2, $3, $4
+			FROM Session
+`, r.c.chID, r.c.ts, r.c.fromClient, r.Name)
+	return err
+}
+
 func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger) (request, error) {
 	c := commonReq{ts: time.Now(), chID: chID, fromClient: fromClient}
 	switch req.Type {
@@ -238,6 +253,20 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Name:  r.Name,
 			Value: r.Value,
 			c:     c,
+		}, nil
+	case SubsystemRequest:
+		r := struct {
+			Name string
+		}{}
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return nil, err
+		}
+		l.Info().
+			Str("name", r.Name).
+			Msg("Got channel request")
+		return &subSystemRequest{
+			Name: r.Name,
+			c:    c,
 		}, nil
 	default:
 		return nil, fmt.Errorf("request %q not supported", req.Type)

@@ -13,22 +13,24 @@ import (
 )
 
 type Channel struct {
-	start time.Time
-	end   time.Time
-	id    uint32
-	p     *ssh.Client
-	l     zerolog.Logger
-	reqs  []request
+	start       time.Time
+	end         time.Time
+	p           *ssh.Client
+	channelType string
+	l           zerolog.Logger
+	reqs        []request
+	id          uint32
 }
 
 // NewChannel creates a new channel
 func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logger) *Channel {
 	ch := &Channel{
-		id:    id,
-		p:     proxy,
-		l:     l.With().Uint32("chID", id).Logger(),
-		start: time.Now(),
-		reqs:  []request{},
+		id:          id,
+		p:           proxy,
+		l:           l.With().Uint32("chID", id).Logger(),
+		start:       time.Now(),
+		reqs:        []request{},
+		channelType: req.ChannelType(),
 	}
 
 	ch.handle(req)
@@ -136,10 +138,10 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 // Insert tries to insert the data into the database
 func (c *Channel) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO Channel(id, session_id, start_ts, end_ts)
-		SELECT $1, MAX(Session.id), $2, $3
+	INSERT INTO Channel(id, session_id, channel_type, start_ts, end_ts)
+		SELECT $1, MAX(Session.id), $2, $3, $4
 			FROM Session
-`, c.id, c.start, c.end)
+`, c.id, c.channelType, c.start, c.end)
 
 	for _, req := range c.reqs {
 		err = req.Insert(tx)

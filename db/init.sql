@@ -22,6 +22,7 @@ CREATE TABLE Session (
 CREATE TABLE Channel (
     id int NOT NULL,
     session_id int NOT NULL,
+    channel_type text NOT NULL,
     start_ts timestamp NOT NULL,
     end_ts timestamp NOT NULL,
     PRIMARY KEY (id, session_id),
@@ -85,7 +86,6 @@ CREATE TABLE WindowDimensionChangeRequest (
     PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
-
 CREATE TABLE EnvironmentRequest (
     id serial NOT NULL,
     session_id int NOT NULL,
@@ -94,6 +94,16 @@ CREATE TABLE EnvironmentRequest (
     from_client boolean NOT NULL,
     name text NOT NULL,
     value text NOT NULL,
+    PRIMARY KEY (session_id, channel_id, id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+);
+CREATE TABLE SubSystemRequest (
+    id serial NOT NULL,
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamp NOT NULL,
+    from_client boolean NOT NULL,
+    name text NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
 );
