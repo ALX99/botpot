@@ -8,7 +8,6 @@ import (
 	"github.com/alx99/botpot/internal/botpot/config"
 	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/alx99/botpot/internal/botpot/hostprovider"
-	"github.com/alx99/botpot/internal/botpot/misc"
 	"github.com/alx99/botpot/internal/botpot/ssh"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -40,7 +39,7 @@ func main() {
 	)
 
 	db := db.NewDB(cfg.PGHost)
-	sshServer := ssh.New(cfg.Port, provider, &db)
+	sshServer := ssh.New(cfg.Port, cfg.SSHHostKeys, provider, &db)
 
 	err := db.Start()
 	if err != nil {
@@ -81,7 +80,12 @@ func setup() config.Config {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	switch strings.ToLower(misc.GetEnv("LOG_LEVEL")) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Could not get config")
+	}
+
+	switch strings.ToLower(cfg.LogLevel) {
 	case "debug":
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	case "warn":
@@ -93,11 +97,6 @@ func setup() config.Config {
 	default:
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-	return config.Config{
-		Port:       misc.GetEnvInt("PORT"),
-		LogLevel:   misc.GetEnv("LOG_LEVEL"),
-		PGHost:     misc.GetEnv("PG_HOST"),
-		DockerHost: misc.GetEnv("DOCKER_HOST"),
-		HostBuffer: misc.GetEnvInt("HOST_BUFFER"),
-	}
+
+	return cfg
 }

@@ -3,6 +3,7 @@ module github.com/alx99/botpot
 go 1.18
 
 require (
+	github.com/caarlos0/env/v6 v6.9.3
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/opencontainers/image-spec v1.0.2

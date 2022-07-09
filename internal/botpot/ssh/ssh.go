@@ -17,15 +17,17 @@ type Server struct {
 	cfg       *ssh.ServerConfig
 	db        *db.DB
 	port      int
+	keypaths  []string
 	lIsClosed bool
 }
 
 // New creates a new SSH server
-func New(port int, provider hostprovider.SSH, database *db.DB) *Server {
+func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB) *Server {
 	s := &Server{
 		port:     port,
 		provider: provider,
 		db:       database,
+		keypaths: keyPaths,
 	}
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
@@ -40,7 +42,7 @@ func New(port int, provider hostprovider.SSH, database *db.DB) *Server {
 // Start starts the SSH server
 func (s *Server) Start() error {
 	log.Info().Msg("Starting SSH Server")
-	for _, key := range []string{"./ed25519.pem", "./rsa.pem", "./ecdsa256.pem", "./ecdsa384.pem", "./ecdsa521.pem"} {
+	for _, key := range s.keypaths {
 		hostKey, err := readHostKey(key)
 		if err != nil {
 			return err
