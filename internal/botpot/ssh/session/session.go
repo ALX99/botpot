@@ -18,9 +18,9 @@ type Session struct {
 	dstIP   string
 	version string
 	l       zerolog.Logger
+	chs     []*channel.Channel
 	srcPort int
 	dstPort int
-	chs     []*channel.Channel
 }
 type ipInfo struct {
 	ip   string

@@ -43,6 +43,7 @@ func (c *Channel) handle(chanReq ssh.NewChannel) {
 
 	proxyChan, proxyReqChan, err := c.p.OpenChannel(chanReq.ChannelType(), chanReq.ExtraData())
 	if err != nil {
+		c.end = time.Now() // ensure endtime is not null value in case of error
 		c.l.Err(err).Msg("Could not open channel")
 		err = chanReq.Reject(ssh.ConnectionFailed, "")
 		if err != nil {

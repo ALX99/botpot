@@ -117,6 +117,22 @@ func (r *windowDimChangeReq) Insert(tx pgx.Tx) error {
 	return err
 }
 
+type envReq struct {
+	Name  string
+	Value string
+
+	c commonReq
+}
+
+func (r *envReq) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO EnvironmentRequest(session_id, channel_id, ts, from_client, name, value)
+		SELECT MAX(Session.id), $1, $2, $3, $4, $5
+			FROM Session
+`, r.c.chID, r.c.ts, r.c.fromClient, r.Name, r.Value)
+	return err
+}
+
 func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger) (request, error) {
 	c := commonReq{ts: time.Now(), chID: chID, fromClient: fromClient}
 	switch req.Type {
@@ -206,8 +222,24 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			height:  r.Height,
 			c:       c,
 		}, nil
+	case EnvironmentRequest:
+		r := struct {
+			Name  string
+			Value string
+		}{}
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return nil, err
+		}
+		l.Info().
+			Str("name", r.Name).
+			Str("value", r.Value).
+			Msg("Got channel request")
+		return &envReq{
+			Name:  r.Name,
+			Value: r.Value,
+			c:     c,
+		}, nil
 	default:
 		return nil, fmt.Errorf("request %q not supported", req.Type)
-
 	}
 }
