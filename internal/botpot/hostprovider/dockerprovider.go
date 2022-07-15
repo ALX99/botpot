@@ -50,14 +50,32 @@ func (d *DockerProvider) Start() error {
 	if err != nil {
 		return err
 	}
-
-	// Pull image
-	readCloser, err := d.client.ImagePull(context.TODO(), d.config.Image, types.ImagePullOptions{})
+	list, err := d.client.ImageList(context.TODO(), types.ImageListOptions{})
 	if err != nil {
 		return err
 	}
-	defer readCloser.Close()
-	io.Copy(os.Stdout, readCloser) // this needs to be handled for whatever reason
+
+	found := false
+	for _, image := range list {
+		for _, tag := range image.RepoTags {
+			found = tag == d.config.Image
+			if found {
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found { // Pull image
+		readCloser, err := d.client.ImagePull(context.TODO(), d.config.Image, types.ImagePullOptions{})
+		if err != nil {
+			return err
+		}
+		defer readCloser.Close()
+		io.Copy(os.Stdout, readCloser) // this needs to be handled for whatever reason
+	}
 
 	d.running = true
 	go d.monitorHostBuf()
@@ -204,7 +222,7 @@ func (d *DockerProvider) GetHost() (string, string, error) {
 	H.SetOccupied(true)
 	// TODO this has to be fixed not to always return localhost
 	// and not always assume that 2222/tcp is the ssh port
-	return fmt.Sprintf("127.0.0.1:%s", res.NetworkSettings.Ports["2222/tcp"][0].HostPort), H.ID(), err
+	return fmt.Sprintf("127.0.0.1:%s", res.NetworkSettings.Ports["22/tcp"][0].HostPort), H.ID(), err
 }
 
 // StopHost stops a managed host

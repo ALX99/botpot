@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+# 1: user
+# 2: password
+adduser "$1" -D
+echo "$1:$2" | chpasswd

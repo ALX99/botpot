@@ -1,13 +1,14 @@
 curr_dir = $(shell pwd)
 
 build:
-	go build -v -a -ldflags "-s -w" -o ./build/botpot ./cmd/botpot/main.go
+	CGO_ENABLED=1 go build -race -v -a -ldflags "-s -w" -o ./build/botpot ./cmd/botpot/main.go
 
 build-release:
 	CGO_ENABLED=0 go build -v -a -ldflags "-s -w" -o ./build/botpot ./cmd/botpot/main.go
 
-image: build-release
+image: build
 	docker build . -t botpot:latest
+	docker build . --file sshpot/Dockerfile -t sshpot:latest
 
 run:
 	go run ./cmd/botpot/main.go

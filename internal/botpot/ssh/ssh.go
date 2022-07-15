@@ -11,23 +11,29 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Server serves SSH connections from attackers
 type Server struct {
 	l         net.Listener
 	provider  hostprovider.SSH
 	cfg       *ssh.ServerConfig
 	db        *db.DB
-	port      int
 	keypaths  []string
+	keys      []ssh.Signer
+	port      int
 	lIsClosed bool
 }
 
 // New creates a new SSH server
 func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB) *Server {
 	s := &Server{
-		port:     port,
-		provider: provider,
-		db:       database,
-		keypaths: keyPaths,
+		l:         nil,
+		provider:  provider,
+		cfg:       &ssh.ServerConfig{},
+		db:        database,
+		port:      port,
+		keypaths:  keyPaths,
+		keys:      []ssh.Signer{},
+		lIsClosed: false,
 	}
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
@@ -48,6 +54,7 @@ func (s *Server) Start() error {
 			return err
 		}
 		s.cfg.AddHostKey(hostKey)
+		s.keys = append(s.keys, hostKey)
 	}
 
 	var err error
@@ -102,14 +109,13 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
-		p := newSSHProxy(host, "panda", "password")
+		p := newSSHProxy(host, "root", s.keys)
 
 		// Create new client
 		c := newClient(sshConn, p, channelChan)
 		// Handle client
 		go func() {
-			// Blocks until client disconnects
-			c.handle(reqChan)
+			c.handle(reqChan) // Blocks until client disconnects
 
 			err := s.provider.StopHost(ID)
 			if err != nil {

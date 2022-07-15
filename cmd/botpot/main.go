@@ -21,16 +21,8 @@ func main() {
 
 	provider := hostprovider.NewDockerProvider(
 		cfg.DockerHost,
-		container.Config{Image: "linuxserver/openssh-server:latest",
-			Env: []string{
-				"PUID=1000",
-				"PGID=1000",
-				"TZ=Europe/London",
-				"SUDO_ACCESS=true",
-				"PASSWORD_ACCESS=true",
-				"USER_PASSWORD=password",
-				"USER_NAME=panda",
-			},
+		container.Config{Image: "sshpot:latest",
+			Env: []string{},
 		},
 		container.HostConfig{Privileged: false, PublishAllPorts: true},
 		network.NetworkingConfig{},
