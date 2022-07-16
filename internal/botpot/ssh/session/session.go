@@ -17,6 +17,8 @@ type Session struct {
 	srcIP   string
 	dstIP   string
 	version string
+	stdout  string
+	timing  string
 	l       zerolog.Logger
 	chs     []*channel.Channel
 	srcPort int
@@ -46,6 +48,12 @@ func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session
 	return s
 }
 
+// AddScriptOutput adds the script output to the session
+func (s *Session) AddScriptOutput(stdout, timing string) {
+	s.stdout = stdout
+	s.timing = timing
+}
+
 // AddChannel adds a channel to the session
 func (s *Session) AddChannel(ch *channel.Channel) {
 	s.chs = append(s.chs, ch)
@@ -63,9 +71,9 @@ func (s *Session) Insert(tx pgx.Tx) error {
 	}
 
 	_, err = tx.Exec(context.TODO(), `
-	INSERT INTO Session(version, src_ip, src_port, dst_ip, dst_port, start_ts, end_ts)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-`, s.version, s.srcIP, s.srcPort, s.dstIP, s.dstPort, s.start, s.end)
+	INSERT INTO Session(version, src_ip, src_port, dst_ip, dst_port, start_ts, end_ts, stdout, timing)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`, s.version, s.srcIP, s.srcPort, s.dstIP, s.dstPort, s.start, s.end, s.stdout, s.timing)
 	if err != nil {
 		return err
 	}

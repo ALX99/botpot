@@ -62,7 +62,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return err
 	}
-	log.Debug().Msgf("Started listening on :%d", s.port)
+	log.Debug().Int("port", s.port).Msg("Started listening")
 
 	go s.loop()
 	return nil
@@ -117,14 +117,21 @@ func (s *Server) loop() {
 		go func() {
 			c.handle(reqChan) // Blocks until client disconnects
 
-			err := s.provider.StopHost(ID)
+			stdout, timing, err := s.provider.GetScriptOutput(ID)
 			if err != nil {
-				log.Err(err).Msgf("Could not stop host %s", ID)
+				log.Err(err).Str("id", ID).Msg("Could not get script output")
+			} else {
+				c.s.AddScriptOutput(stdout, timing)
+			}
+
+			err = s.provider.StopHost(ID)
+			if err != nil {
+				log.Err(err).Str("id", ID).Msg("Could not stop host")
 			}
 
 			err = s.db.BeginTx(c.s.Insert)
 			if err != nil {
-				c.l.Err(err).Msg("Could not insert data into DB")
+				log.Err(err).Str("id", ID).Msg("Could not insert data into DB")
 			}
 		}()
 	}

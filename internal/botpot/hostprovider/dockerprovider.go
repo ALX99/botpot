@@ -1,10 +1,13 @@
 package hostprovider
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +20,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// DockerProvider provides docker containers that
+// run SSH servers that can serve attackers
 type DockerProvider struct {
 	sync.RWMutex
 	client        *client.Client
@@ -225,7 +230,51 @@ func (d *DockerProvider) GetHost() (string, string, error) {
 	return fmt.Sprintf("127.0.0.1:%s", res.NetworkSettings.Ports["22/tcp"][0].HostPort), H.ID(), err
 }
 
+// GetScriptOutput gets the script output and timing files
+func (d *DockerProvider) GetScriptOutput(ID string) (string, string, error) {
+	r, _, err := d.client.CopyFromContainer(context.TODO(), ID, "/tmp/l")
+	if err != nil {
+		// Not really something that we should treat as an error for now
+		if strings.Contains(err.Error(), "No such container:path") {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+
+	stdout, err := readTar(r)
+	if err != nil {
+		return "", "", err
+	}
+
+	r, _, err = d.client.CopyFromContainer(context.TODO(), ID, "/tmp/t")
+	if err != nil {
+		return "", "", err
+	}
+
+	timing, err := readTar(r)
+	if err != nil {
+		return "", "", err
+	}
+
+	return stdout, timing, nil
+}
+
 // StopHost stops a managed host
 func (d *DockerProvider) StopHost(ID string) error {
 	return d.deleteContainer(ID)
+}
+
+func readTar(r io.ReadCloser) (string, error) {
+	defer r.Close()
+	tr := tar.NewReader(r)
+
+	_, err := tr.Next()
+	if err != nil {
+		return "", err
+	}
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(tr)
+
+	return buf.String(), nil
 }

@@ -10,7 +10,7 @@ RUN apk add --no-cache openssh asciinema curl util-linux bash \
     && sed -i 's/#PermitUserEnvironment.*/PermitUserEnvironment yes/g' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication no/g' /etc/ssh/sshd_config \
     && bash -c 'mkdir /root/.ssh && for i in /keys/*.pub; do cat "$i" >> /root/.ssh/authorized_keys; done' \
-    && echo "echo hi" >> /etc/profile
+    && echo "script -qea /tmp/l -T /tmp/t" >> /etc/profile
 
 EXPOSE 22
 

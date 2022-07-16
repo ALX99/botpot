@@ -6,4 +6,5 @@ type SSH interface {
 	Stop() error
 	GetHost() (IP string, ID string, err error)
 	StopHost(ID string) error
+	GetScriptOutput(ID string) (string, string, error)
 }
