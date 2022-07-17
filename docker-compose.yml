@@ -13,6 +13,11 @@ services:
     #   - "127.0.0.1:5432:5432"
     # networks:
     #   - default
+  grafana:
+    image: grafana/grafana-oss
+    restart: always
+    network_mode: host
+
   botpot:
     image: botpot:latest
     restart: always

@@ -16,6 +16,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func init() {
+	// Did they really not fix it for postgres lol?
+	// https://github.com/grafana/grafana/issues/18120
+	os.Setenv("TZ", "UTC")
+}
+
 func main() {
 	cfg := setup()
 
