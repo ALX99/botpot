@@ -3,8 +3,8 @@ package channel
 import (
 	"bytes"
 	"context"
-	"errors"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v4"
@@ -12,25 +12,35 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Channel represents an SSH channel
 type Channel struct {
 	start       time.Time
 	end         time.Time
 	p           *ssh.Client
+	closed      *int32
 	channelType string
 	l           zerolog.Logger
 	reqs        []request
 	id          uint32
+
+	// Data received by the client
+	recvStderr *bytes.Buffer
+	recv       *bytes.Buffer
 }
 
 // NewChannel creates a new channel
 func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logger) *Channel {
 	ch := &Channel{
-		id:          id,
-		p:           proxy,
-		l:           l.With().Uint32("chID", id).Logger(),
 		start:       time.Now(),
-		reqs:        []request{},
+		end:         time.Time{},
+		p:           proxy,
 		channelType: req.ChannelType(),
+		l:           l.With().Uint32("chID", id).Logger(),
+		reqs:        []request{},
+		id:          id,
+		closed:      new(int32),
+		recv:        &bytes.Buffer{},
+		recvStderr:  &bytes.Buffer{},
 	}
 
 	ch.handle(req)
@@ -56,7 +66,9 @@ func (c *Channel) handle(chanReq ssh.NewChannel) {
 
 	clientChan, clientReqChan, err := chanReq.Accept()
 	if err != nil {
+		c.end = time.Now() // ensure endtime is not null value in case of error
 		c.l.Err(err).Msg("Could not accept channel request")
+		return
 	}
 
 	c.proxyChannelData(clientChan, proxyChan)           // handle the new channel
@@ -64,32 +76,27 @@ func (c *Channel) handle(chanReq ssh.NewChannel) {
 	go c.handleRequest(clientChan, proxyReqChan, false) // proxy to client
 }
 
-// proxyChannelData proxies tdata between two SSH channels
+// proxyChannelData proxies data between two SSH channels
 func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
-	proxyFunc := func(read io.Reader, write io.Writer, rclose, wclose func() error, fromClient bool) {
-		var buf bytes.Buffer
-		read = io.TeeReader(read, &buf)
+	proxyFunc := func(read io.Reader, write io.Writer, fromClient bool) {
 		n, err := io.Copy(write, read)
 		if err != nil {
-			// Try to close both ios if we get an EOF error
-			// and ignore errors
-			if errors.Is(err, io.EOF) {
-				rclose()
-				wclose()
-			}
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to copy")
 		} else {
 			c.l.Debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send()
-		}
-		if n > 0 {
-			c.l.Debug().Bool("fromClient", fromClient).Str("data", string(buf.Bytes())).Send()
+
+			// Keep track of when the proxy has closed
+			// the channel connection
+			if !fromClient {
+				atomic.AddInt32(c.closed, 1)
+			}
 		}
 	}
 
-	go proxyFunc(clientChan, proxyChan, clientChan.Close, proxyChan.Close, true)
-	go proxyFunc(clientChan.Stderr(), proxyChan.Stderr(), clientChan.Close, proxyChan.Close, true)
-	go proxyFunc(proxyChan, clientChan, proxyChan.Close, clientChan.Close, false)
-	go proxyFunc(proxyChan.Stderr(), clientChan.Stderr(), proxyChan.Close, clientChan.Close, false)
+	go proxyFunc(io.TeeReader(clientChan, c.recv), proxyChan, true)
+	go proxyFunc(io.TeeReader(clientChan.Stderr(), c.recvStderr), proxyChan.Stderr(), true)
+	go proxyFunc(proxyChan, clientChan, false)
+	go proxyFunc(proxyChan.Stderr(), clientChan.Stderr(), false)
 }
 
 // handleRequest proxies requests between an SSH server and an SSH client
@@ -122,6 +129,14 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 
 		// https://datatracker.ietf.org/doc/html/rfc4254#section-6.10
 		if req.Type == "exit-status" && !fromClient {
+			// This allows us to wait until all channel data
+			// from the proxy has been read. That means that there
+			// will not be any more data needed to be sent over the channel
+			for atomic.LoadInt32(c.closed) != 2 {
+				time.Sleep(10 * time.Millisecond)
+			}
+
+			c.l.Info().Bool("fromClient", fromClient).Msg("Done")
 			if err = channel.Close(); err != nil {
 				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 			}
@@ -133,6 +148,7 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 	if fromClient {
 		c.end = time.Now()
 	}
+
 }
 
 // Insert tries to insert the data into the database
