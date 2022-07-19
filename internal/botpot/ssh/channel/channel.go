@@ -17,15 +17,14 @@ type Channel struct {
 	start       time.Time
 	end         time.Time
 	p           *ssh.Client
+	proxyClosed *int32
+	recvStderr  *bytes.Buffer
+	recv        *bytes.Buffer
 	closed      *int32
 	channelType string
 	l           zerolog.Logger
 	reqs        []request
 	id          uint32
-
-	// Data received by the client
-	recvStderr *bytes.Buffer
-	recv       *bytes.Buffer
 }
 
 // NewChannel creates a new channel
@@ -34,13 +33,14 @@ func NewChannel(id uint32, req ssh.NewChannel, proxy *ssh.Client, l zerolog.Logg
 		start:       time.Now(),
 		end:         time.Time{},
 		p:           proxy,
+		proxyClosed: new(int32),
+		recvStderr:  &bytes.Buffer{},
+		recv:        &bytes.Buffer{},
 		channelType: req.ChannelType(),
 		l:           l.With().Uint32("chID", id).Logger(),
 		reqs:        []request{},
 		id:          id,
 		closed:      new(int32),
-		recv:        &bytes.Buffer{},
-		recvStderr:  &bytes.Buffer{},
 	}
 
 	ch.handle(req)
@@ -78,19 +78,30 @@ func (c *Channel) handle(chanReq ssh.NewChannel) {
 
 // proxyChannelData proxies data between two SSH channels
 func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
+	clientClosed := new(int32)
 	proxyFunc := func(read io.Reader, write io.Writer, fromClient bool) {
 		n, err := io.Copy(write, read)
 		if err != nil {
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to copy")
 		} else {
-			c.l.Debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send()
-
 			// Keep track of when the proxy has closed
 			// the channel connection
+			// This is needed since we want to wait with closing the client
+			// SSH channel until all data has been sent
 			if !fromClient {
-				atomic.AddInt32(c.closed, 1)
+				atomic.AddInt32(c.proxyClosed, 1)
+			} else {
+				if atomic.AddInt32(clientClosed, 1) == 2 && atomic.LoadInt32(c.closed) != 1 {
+					// Here the client has left us without the proxy request channel being closed
+					// This case can for example be hit when dealing with SFTP
+					// Time to bail
+					if err = proxyChan.Close(); err != nil {
+						c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
+					}
+				}
 			}
 		}
+		c.l.Debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send()
 	}
 
 	go proxyFunc(io.TeeReader(clientChan, c.recv), proxyChan, true)
@@ -126,22 +137,24 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 				}
 			}
 		}
+	}
 
-		// https://datatracker.ietf.org/doc/html/rfc4254#section-6.10
-		if req.Type == "exit-status" && !fromClient {
-			// This allows us to wait until all channel data
-			// from the proxy has been read. That means that there
-			// will not be any more data needed to be sent over the channel
-			for atomic.LoadInt32(c.closed) != 2 {
-				time.Sleep(10 * time.Millisecond)
-			}
+	// Here we know there will be no new requests from the proxy
+	if !fromClient {
+		// We will take care of closing the client channel
+		atomic.AddInt32(c.closed, 1)
 
-			c.l.Info().Bool("fromClient", fromClient).Msg("Done")
-			if err = channel.Close(); err != nil {
-				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
-			}
+		// This allows us to wait until all channel data
+		// from the proxy has been read and sent to the client channel.
+		for atomic.LoadInt32(c.proxyClosed) != 2 {
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		if err := channel.Close(); err != nil {
+			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 		}
 	}
+
 	// If we reach this point it means that the reqChan
 	// client has been closed and thus the channel
 	// TODO read RFC
@@ -149,6 +162,7 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 		c.end = time.Now()
 	}
 
+	c.l.Info().Bool("fromClient", fromClient).Msg("All requests served")
 }
 
 // Insert tries to insert the data into the database
