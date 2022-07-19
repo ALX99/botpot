@@ -25,6 +25,8 @@ CREATE TABLE Channel (
     id int NOT NULL,
     session_id int NOT NULL,
     channel_type text NOT NULL,
+    recv bytea,
+    recv_stderr bytea,
     start_ts timestamptz NOT NULL,
     end_ts timestamptz NOT NULL,
     PRIMARY KEY (id, session_id),
