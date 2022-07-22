@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	"github.com/alx99/botpot/internal/botpot/sftp"
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
@@ -176,8 +178,26 @@ func (c *Channel) Insert(tx pgx.Tx) error {
 		return err
 	}
 
+	sftpFound := false
 	for _, req := range c.reqs {
 		err = req.Insert(tx)
+		if err != nil {
+			return err
+		}
+
+		// Look for SFTP subsystem
+		switch v := req.(type) {
+		case *subSystemRequest:
+			if strings.ToLower(v.Name) == "sftp" {
+				sftpFound = true
+			}
+		default:
+		}
+	}
+
+	if sftpFound {
+		parser := sftp.NewParser(c.recv.Bytes(), c.l)
+		err = parser.Parse()
 		if err != nil {
 			return err
 		}
