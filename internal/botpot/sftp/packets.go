@@ -5,10 +5,6 @@ import (
 	"errors"
 )
 
-var (
-	shortPacket = errors.New("short packet")
-)
-
 const (
 	sshFXPInit     = 1
 	sshFXPVersion  = 2
@@ -43,6 +39,15 @@ const (
 	sshFXPExtendedReply = 201
 )
 
+// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-5
+const (
+	sshFileExferAttrSize        = 0x00000001
+	sshFileExferAttrUIDGID      = 0x00000002
+	sshFileExferAttrPermissions = 0x00000004
+	sshFileExferAttrACModTime   = 0x00000008
+	sshFileExferAttrExtended    = 0x80000000
+)
+
 // Init SSH_FXP_INIT C->S
 type Init struct {
 	Version uint32
@@ -66,31 +71,27 @@ type Version struct {
 // Open SSH_FXP_OPEN C->S
 type Open struct {
 	Filename  string // UTF-8
-	Attrs     []byte // todo
+	Attrs     FileAttributes
 	RequestID uint32
 	PFlags    uint32
-	Flags     uint32
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
 func (p *Open) UnmarshalBinary(data []byte) error {
-	p.RequestID = binary.BigEndian.Uint32(data[:4])
-	length := binary.BigEndian.Uint32(data[4:8])
+	var err error
+	pb := newPacketBuffer(data)
 
-	dataLen := uint32(len(data))
-	if dataLen+8 < length {
-		return shortPacket
+	if p.RequestID, err = pb.readUint32(); err != nil {
+		return err
+	}
+	if p.Filename, err = pb.readUTF8(); err != nil {
+		return err
+	}
+	if p.PFlags, err = pb.readUint32(); err != nil {
+		return err
 	}
 
-	p.Filename = string(data[8:length])
-
-	if dataLen+8 < length+4 {
-		return shortPacket
-	}
-
-	p.PFlags = binary.BigEndian.Uint32(data[8+length : 13+length])
-	// todo read attrs
-	return nil
+	return p.Attrs.UnmarshalBinary(pb.getRemainingBytes())
 }
 
 // Close SSH_FXP_CLOSE C->S
@@ -284,7 +285,83 @@ type ExtendedReply struct {
 	RequestID     uint32
 }
 
-// packet structures an SFTP packet
+// FileAttributes https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-5
+type FileAttributes struct {
+	ExtendedType  []string
+	ExtendedData  []string
+	Size          uint64
+	Flags         uint32
+	Permissions   uint32
+	Atime         uint32
+	Mtime         uint32
+	ExtendedCount uint32
+	UID           uint32
+	GID           uint32
+}
+
+// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
+func (fa *FileAttributes) UnmarshalBinary(data []byte) error {
+	pb := newPacketBuffer(data)
+	var err error
+
+	if fa.Flags, err = pb.readUint32(); err != nil {
+		return err
+	}
+
+	if fa.Flags&sshFileExferAttrSize != 0 {
+		if fa.Size, err = pb.readUint64(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFileExferAttrUIDGID != 0 {
+		if fa.UID, err = pb.readUint32(); err != nil {
+			return err
+		}
+		if fa.GID, err = pb.readUint32(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFileExferAttrPermissions != 0 {
+		if fa.Permissions, err = pb.readUint32(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFileExferAttrACModTime != 0 {
+		if fa.Atime, err = pb.readUint32(); err != nil {
+			return err
+		}
+		if fa.Mtime, err = pb.readUint32(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFileExferAttrExtended == 0 {
+		return nil
+	}
+
+	if fa.ExtendedCount, err = pb.readUint32(); err != nil {
+		return err
+	}
+
+	fa.ExtendedType = make([]string, fa.ExtendedCount)
+	fa.ExtendedData = make([]string, fa.ExtendedCount)
+
+	for i := uint32(0); i < fa.ExtendedCount; i++ {
+		if fa.ExtendedType[i], err = pb.readUTF8(); err != nil {
+			return err
+		}
+		if fa.ExtendedData[i], err = pb.readUTF8(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// packet represents an SFTP packet
 // https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-4
 type packet struct {
 	data   []byte
