@@ -25,13 +25,17 @@ func (s *Parser) Parse() error {
 	if err != nil {
 		return err
 	}
+	err = s.parseInfo(packets)
+	if err != nil {
+		return err
+	}
 
 	s.l.Debug().Int("count", len(packets)).Msg("Succesfully parsed all SFTP packets")
 	return nil
 }
 
-func (s *Parser) readAllPackets() ([]sftpPacket, error) {
-	var packets []sftpPacket
+func (s *Parser) readAllPackets() ([]packet, error) {
+	var packets []packet
 	for s.data.Len() > 0 {
 		p, err := readPacket(s.data)
 		if err != nil {
@@ -43,33 +47,47 @@ func (s *Parser) readAllPackets() ([]sftpPacket, error) {
 	return packets, nil
 }
 
-// sftpPacket structures an SFTP packet
-// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-3
-type sftpPacket struct {
-	data   []byte
-	length uint32
-	pType  byte
+func (s *Parser) parseInfo(packets []packet) error {
+	for _, packet := range packets {
+		switch packet.pType {
+		case sshFXPInit:
+			p := Init{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("SFTP server version %d", p.Version)
+		case sshFXPOpen:
+			p := Open{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Open: %s", p.Filename)
+		default:
+			// s.l.Warn().Uint8("type", p.pType).Msg("Did not understand SFTP packet")
+		}
+	}
+	return nil
 }
 
 // readPacket reads a single SFTP packet
-func readPacket(r io.Reader) (sftpPacket, error) {
+func readPacket(r io.Reader) (packet, error) {
 	var len uint32
 	err := binary.Read(r, binary.BigEndian, &len)
 	if err != nil {
-		return sftpPacket{}, err
+		return packet{}, err
 	}
 
 	var pType byte
 	err = binary.Read(r, binary.BigEndian, &pType)
 	if err != nil {
-		return sftpPacket{}, err
+		return packet{}, err
 	}
 
 	buf := make([]byte, len-1) // -1 since length includes type
 	err = binary.Read(r, binary.BigEndian, buf)
 	if err != nil {
-		return sftpPacket{}, err
+		return packet{}, err
 	}
 
-	return sftpPacket{length: len, pType: pType, data: buf}, nil
+	return packet{length: len, pType: pType, data: buf}, nil
 }

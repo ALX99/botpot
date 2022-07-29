@@ -196,6 +196,7 @@ func (c *Channel) Insert(tx pgx.Tx) error {
 	}
 
 	if sftpFound {
+		// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-3.1
 		parser := sftp.NewParser(c.recv.Bytes(), c.l)
 		err = parser.Parse()
 		if err != nil {
