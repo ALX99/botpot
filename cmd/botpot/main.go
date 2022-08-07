@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/alx99/botpot/internal/botpot/config"
 	"github.com/alx99/botpot/internal/botpot/db"
@@ -24,7 +25,6 @@ func init() {
 
 func main() {
 	cfg := setup()
-
 	provider := hostprovider.NewDockerProvider(
 		cfg.DockerHost,
 		container.Config{Image: "sshpot:latest",
@@ -54,8 +54,8 @@ func main() {
 		log.Fatal().Err(err).Msg("Could not start SSH Server")
 	}
 
-	c := make(chan os.Signal)
-	signal.Notify(c, os.Interrupt, os.Kill)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 
 	err = sshServer.Stop()

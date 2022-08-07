@@ -100,6 +100,23 @@ type Close struct {
 	RequestID uint32
 }
 
+func (p *Close) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 // Read SSH_FXP_READ C->S
 type Read struct {
 	Handle    string
@@ -107,6 +124,8 @@ type Read struct {
 	RequestID uint32
 	Length    uint32
 }
+
+func (p *Read) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Write SSH_FXP_WRITE C->S
 type Write struct {
@@ -116,12 +135,16 @@ type Write struct {
 	RequestID uint32
 }
 
+func (p *Write) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Lstat or SSH_FXP_LSTAT
 type Lstat struct {
 	Path      string // UTF-8
 	RequestID uint32
 	Flags     uint32
 }
+
+func (p *Lstat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // FStat SSH_FXP_FSTAT C->S
 type FStat struct {
@@ -130,12 +153,16 @@ type FStat struct {
 	Flags     uint32
 }
 
+func (p *FStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // SetStat SSH_FXP_SETSTAT C->S
 type SetStat struct {
 	Path      string // UTF-8
 	Attrs     []byte // todo
 	RequestID uint32
 }
+
+func (p *SetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // FSetStat SSH_FXP_FSETSTAT C->S
 type FSetStat struct {
@@ -144,11 +171,15 @@ type FSetStat struct {
 	RequestID uint32
 }
 
+func (p *FSetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // OpenDir SSH_FXP_OPENDIR
 type OpenDir struct {
 	Path      string
 	RequestID uint32
 }
+
+func (p *OpenDir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // ReadDir SSH_FXP_READDIR C->S
 type ReadDir struct {
@@ -156,11 +187,15 @@ type ReadDir struct {
 	RequestID uint32
 }
 
+func (p *ReadDir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Remove SSH_FXP_REMOVE C->S
 type Remove struct {
 	Filename  string // UTF-8
 	RequestID uint32
 }
+
+func (p *Remove) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Mkdir SSH_FXP_MKDIR C->S
 type Mkdir struct {
@@ -169,11 +204,15 @@ type Mkdir struct {
 	RequestID uint32
 }
 
+func (p *Mkdir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Rmdir SSH_FXP_RMDIR C->S
 type Rmdir struct {
 	Path      string // UTF-8
 	RequestID uint32
 }
+
+func (p *Rmdir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // RealPath SSH_FXP_REALPATH C->S
 type RealPath struct {
@@ -183,12 +222,16 @@ type RealPath struct {
 	ControlByte  byte // optional
 }
 
+func (p *RealPath) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Stat SSH_FXP_STAT
 type Stat struct {
 	Path      string // UTF-8
 	RequestID uint32
 	Flags     uint32
 }
+
+func (p *Stat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Rename SSH_FXP_RENAME C->S
 type Rename struct {
@@ -198,11 +241,15 @@ type Rename struct {
 	Flags     uint32
 }
 
+func (p *Rename) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Readlink SSH_FXP_READLINK C->S
 type Readlink struct {
 	Path      string // UTF-8
 	RequestID uint32
 }
+
+func (p *Readlink) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Link SSH_FXP_LINK C->S
 type Link struct {
@@ -211,6 +258,8 @@ type Link struct {
 	RequestID        uint32
 	SymLink          bool
 }
+
+func (p *Link) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Block SSH_FXP_BLOCK
 type Block struct {
@@ -225,6 +274,8 @@ type Block struct {
 	RequestID uint32
 }
 
+func (p *Block) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Unblock SSH_FXP_UNBLOCK
 type Unblock struct {
 	// Handle is returned by SSH_FXP_OPEN
@@ -236,6 +287,8 @@ type Unblock struct {
 	RequestID uint32
 }
 
+func (p *Unblock) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Status SSH_FXP_STATUS S->C
 type Status struct {
 	Message   string // ISO-10646 UTF-8 [RFC-2279]
@@ -244,11 +297,15 @@ type Status struct {
 	ErrorCode uint32
 }
 
+func (p *Status) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Handle SSH_FXP_HANDLE S->C
 type Handle struct {
 	Handle    string
 	RequestID uint32
 }
+
+func (p *Handle) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Data SSH_FXP_DATA S->C
 type Data struct {
@@ -256,6 +313,8 @@ type Data struct {
 	RequestID uint32
 	EOF       bool
 }
+
+func (p *Data) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Name SSH_FXP_NAME S->C
 type Name struct {
@@ -266,11 +325,15 @@ type Name struct {
 	EOL       bool // Optional
 }
 
+func (p *Name) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // Attrs SSH_FXP_ATTRS
 type Attrs struct {
 	Attrs     []byte //  Todo Attrs structure
 	RequestID uint32
 }
+
+func (p *Attrs) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Extended SSH_FXP_EXTENDED
 type Extended struct {
@@ -279,11 +342,15 @@ type Extended struct {
 	RequestID       uint32
 }
 
+func (p *Extended) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+
 // ExtendedReply SSH_FXP_EXTENDED_REPLY
 type ExtendedReply struct {
 	ExtensionData []byte
 	RequestID     uint32
 }
+
+func (p *ExtendedReply) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // FileAttributes https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-02#section-5
 type FileAttributes struct {
