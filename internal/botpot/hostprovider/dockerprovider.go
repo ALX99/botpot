@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alx99/botpot/internal/botpot/host"
@@ -28,7 +29,7 @@ type DockerProvider struct {
 	containers    map[string]*host.DHost
 	host          string
 	hostBuffer    int
-	running       bool
+	running       atomic.Bool
 	config        container.Config
 	hostConfig    container.HostConfig
 	networkConfig network.NetworkingConfig
@@ -82,13 +83,13 @@ func (d *DockerProvider) Start() error {
 		io.Copy(os.Stdout, readCloser) // this needs to be handled for whatever reason
 	}
 
-	d.running = true
+	d.running.Store(true)
 	go d.monitorHostBuf()
 	return nil
 }
 
 func (d *DockerProvider) monitorHostBuf() {
-	for d.running {
+	for d.running.Load() {
 		occupiedCount := 0
 		d.RLock()
 		hostCount := len(d.containers)
@@ -135,7 +136,7 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 
 func (d *DockerProvider) Stop() error {
 	log.Info().Msg("Stopping DockerProvider")
-	d.running = false
+	d.running.Store(false)
 	var errs error
 	for ID := range d.containers {
 		err := d.deleteContainer(ID)

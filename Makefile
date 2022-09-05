@@ -1,5 +1,7 @@
 curr_dir = $(shell pwd)
 
+.PHONY: clean image
+
 build:
 	CGO_ENABLED=1 go build -race -v -a -ldflags "-s -w" -o ./build/botpot ./cmd/botpot/main.go
 
@@ -11,7 +13,7 @@ image: build
 	docker build . --file sshpot/Dockerfile -t sshpot:latest
 
 run:
-	go run ./cmd/botpot/main.go
+	CGO_ENABLED=1 go run -race ./cmd/botpot/main.go
 
 keys: ed25519.pem rsa.pem
 	ssh-keygen -t rsa -N "" -f rsa.pem

@@ -3,6 +3,7 @@ package ssh
 import (
 	"errors"
 	"net"
+	"sync"
 	"sync/atomic"
 
 	"github.com/alx99/botpot/internal/botpot/ssh/channel"
@@ -21,25 +22,29 @@ type client struct {
 	s            session.Session
 	chanCounter  uint32
 	disconnected bool
+	wg           sync.WaitGroup
 }
 
-func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel) client {
+func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel) *client {
 	l := log.With().
 		Str("version", string(conn.ClientVersion())).
 		Str("rAddr", conn.RemoteAddr().String()).
 		Logger()
 	s := session.NewSession(conn.RemoteAddr(), conn.LocalAddr(), string(conn.ClientVersion()), l)
 	c := client{
-		p:           p,
-		conn:        conn,
-		channelchan: channelChan,
-		rAddr:       conn.RemoteAddr(),
-		s:           s,
-		l:           l,
+		conn:         conn,
+		rAddr:        conn.RemoteAddr(),
+		channelchan:  channelChan,
+		p:            p,
+		l:            l,
+		s:            s,
+		chanCounter:  0,
+		disconnected: false,
+		wg:           sync.WaitGroup{},
 	}
 
 	l.Info().Msg("Connected")
-	return c
+	return &c
 }
 
 // handle handles the client and blocks until client has disconnected
@@ -52,6 +57,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	}
 
 	c.l.Info().Msg("Connected to proxy")
+	c.wg.Add(2)
 	go c.handleChannels()
 	go c.handleGlobalRequests(c.p.client, reqChan, true) // client to proxy
 
@@ -72,6 +78,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	}()
 
 	// Wait for client to disconnect
+
 	c.conn.Wait()
 	c.disconnected = true
 
@@ -81,6 +88,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	if err != nil {
 		c.l.Err(err).Msg("Error while disconnecting proxy")
 	}
+	c.wg.Wait()
 }
 
 // handleChannels handles channel requests from the client
@@ -89,6 +97,7 @@ func (c *client) handleChannels() {
 		ch := channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p.client, c.l)
 		c.s.AddChannel(ch)
 	}
+	c.wg.Done()
 }
 
 // handleGlobalRequests proxies global requests from the client to an SSH server
@@ -122,4 +131,5 @@ func (c *client) handleGlobalRequests(client *ssh.Client, reqChan <-chan *ssh.Re
 			}
 		}
 	}
+	c.wg.Done()
 }
