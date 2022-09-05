@@ -62,6 +62,42 @@ func (s *Parser) parseInfo(packets []packet) error {
 				return err
 			}
 			s.l.Info().Msgf("Open: %s", p.Filename)
+		case sshFXPClose:
+			p := Close{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Close: %d %s", p.RequestID, p.Handle)
+		case sshFXPRead:
+			p := Read{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Read: %d %d", p.RequestID, p.Offset)
+		case sshFXPWrite:
+			p := Write{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Write: %d %s  %d", p.RequestID, p.Handle, p.Offset)
+		case sshFXPMkdir:
+			p := Mkdir{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Mkdir: %d %s", p.RequestID, p.Path)
+		case sshFXPOpenDir:
+			p := OpenDir{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Opendir: %d %s", p.RequestID, p.Path)
+		case sshFXPReadDir:
+			p := ReadDir{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+			s.l.Info().Msgf("Readdir: %d %s", p.RequestID, p.Handle)
 		default:
 			// s.l.Warn().Uint8("type", p.pType).Msg("Did not understand SFTP packet")
 		}

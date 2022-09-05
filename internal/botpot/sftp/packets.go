@@ -109,12 +109,13 @@ func (p *Close) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
+	// TODO not sure this one is working
 	p.Handle, err = pb.readUTF8()
 	if err != nil {
 		return err
 	}
 
-	return err
+	return nil
 }
 
 // Read SSH_FXP_READ C->S
@@ -125,7 +126,33 @@ type Read struct {
 	Length    uint32
 }
 
-func (p *Read) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *Read) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	// TODO not sure this one is working
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	p.Offset, err = pb.readUint64()
+	if err != nil {
+		return err
+	}
+
+	p.Length, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Write SSH_FXP_WRITE C->S
 type Write struct {
@@ -135,25 +162,251 @@ type Write struct {
 	RequestID uint32
 }
 
-func (p *Write) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *Write) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	// TODO not sure this one is working
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	p.Offset, err = pb.readUint64()
+	if err != nil {
+		return err
+	}
+
+	p.Data, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Remove SSH_FXP_REMOVE C->S
+type Remove struct {
+	Filename  string // UTF-8
+	RequestID uint32
+}
+
+func (p *Remove) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	// TODO not sure this one is working
+	p.Filename, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Rename SSH_FXP_RENAME C->S
+type Rename struct {
+	OldPath   string // UTF-8
+	NewPath   string // UTF-8
+	RequestID uint32
+	Flags     uint32
+}
+
+func (p *Rename) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	// TODO not sure this one is working
+	p.OldPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	// TODO not sure this one is working
+	p.NewPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Mkdir SSH_FXP_MKDIR C->S
+type Mkdir struct {
+	Path      string
+	Attrs     FileAttributes
+	RequestID uint32
+}
+
+func (p *Mkdir) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return p.Attrs.UnmarshalBinary(pb.getRemainingBytes())
+}
+
+// Rmdir SSH_FXP_RMDIR C->S
+type Rmdir struct {
+	Path      string // UTF-8
+	RequestID uint32
+}
+
+func (p *Rmdir) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// OpenDir SSH_FXP_OPENDIR
+type OpenDir struct {
+	Path      string
+	RequestID uint32
+}
+
+func (p *OpenDir) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReadDir SSH_FXP_READDIR C->S
+type ReadDir struct {
+	Handle    string
+	RequestID uint32
+}
+
+func (p *ReadDir) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Stat SSH_FXP_STAT
+type Stat struct {
+	Path      string // UTF-8
+	RequestID uint32
+}
+
+func (p *Stat) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Lstat or SSH_FXP_LSTAT
 type Lstat struct {
 	Path      string // UTF-8
 	RequestID uint32
-	Flags     uint32
 }
 
-func (p *Lstat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *Lstat) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // FStat SSH_FXP_FSTAT C->S
 type FStat struct {
 	Handle    string
 	RequestID uint32
-	Flags     uint32
 }
 
-func (p *FStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *FStat) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.RequestID, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // SetStat SSH_FXP_SETSTAT C->S
 type SetStat struct {
@@ -173,47 +426,6 @@ type FSetStat struct {
 
 func (p *FSetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
-// OpenDir SSH_FXP_OPENDIR
-type OpenDir struct {
-	Path      string
-	RequestID uint32
-}
-
-func (p *OpenDir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// ReadDir SSH_FXP_READDIR C->S
-type ReadDir struct {
-	Handle    string
-	RequestID uint32
-}
-
-func (p *ReadDir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// Remove SSH_FXP_REMOVE C->S
-type Remove struct {
-	Filename  string // UTF-8
-	RequestID uint32
-}
-
-func (p *Remove) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// Mkdir SSH_FXP_MKDIR C->S
-type Mkdir struct {
-	Path      string
-	Attrs     []byte
-	RequestID uint32
-}
-
-func (p *Mkdir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// Rmdir SSH_FXP_RMDIR C->S
-type Rmdir struct {
-	Path      string // UTF-8
-	RequestID uint32
-}
-
-func (p *Rmdir) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
 // RealPath SSH_FXP_REALPATH C->S
 type RealPath struct {
 	OriginalPath string   // UTF-8
@@ -223,25 +435,6 @@ type RealPath struct {
 }
 
 func (p *RealPath) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// Stat SSH_FXP_STAT
-type Stat struct {
-	Path      string // UTF-8
-	RequestID uint32
-	Flags     uint32
-}
-
-func (p *Stat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
-
-// Rename SSH_FXP_RENAME C->S
-type Rename struct {
-	OldPath   string // UTF-8
-	NewPath   string // UTF-8
-	RequestID uint32
-	Flags     uint32
-}
-
-func (p *Rename) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Readlink SSH_FXP_READLINK C->S
 type Readlink struct {
