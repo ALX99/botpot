@@ -23,8 +23,8 @@ services:
     restart: always
     env_file: botpot.env
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./key:/key:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./keys:/keys:ro
     network_mode: host
     # ports:
     #   - "127.0.0.1:2000:2000"

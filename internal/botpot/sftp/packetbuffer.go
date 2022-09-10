@@ -57,4 +57,3 @@ func (pb *packetBuffer) readUTF8() (string, error) {
 
 	return string(pb.buf[pb.pos-strLen : pb.pos]), nil
 }
-
