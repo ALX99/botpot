@@ -27,7 +27,7 @@ func main() {
 	cfg := setup()
 	provider := hostprovider.NewDockerProvider(
 		cfg.DockerHost,
-		container.Config{Image: "sshpot:latest",
+		container.Config{Image: cfg.HoneypotImage,
 			Env: []string{},
 		},
 		container.HostConfig{Privileged: false, PublishAllPorts: true},
