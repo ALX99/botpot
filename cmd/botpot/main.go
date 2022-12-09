@@ -17,6 +17,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Variables set by linker
+var (
+	commitHash      = ""
+	compilationDate = ""
+)
+
 func init() {
 	// Did they really not fix it for postgres lol?
 	// https://github.com/grafana/grafana/issues/18120
@@ -25,6 +31,8 @@ func init() {
 
 func main() {
 	cfg := setup()
+	log.Info().Str("commitHash", commitHash).Str("compilationDate", compilationDate).Msgf("Botpot started!")
+
 	provider := hostprovider.NewDockerProvider(
 		cfg.DockerHost,
 		container.Config{Image: cfg.HoneypotImage,

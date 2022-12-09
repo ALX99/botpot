@@ -1,0 +1,44 @@
+version: 3
+
+vars:
+  COMMIT_HASH: { sh: git log -n1 --format=%h }
+  DATE: '{{now | date "2006-01-02T15:04:05Z07:00"}}'
+
+tasks:
+  clean:
+    - rm -rf ./build
+
+  build:
+    sources:
+      - ./internal/**/*.go
+      - ./cmd/botpot/main.go
+    generates:
+      - ./build/botpot
+    cmds:
+      - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
+
+  image:
+    deps:
+      - task: build
+      - task: docker-build
+        vars:
+          DOCKER_FILE: sshpot/Dockerfile
+          DOCKER_IMAGE: sshpot:latest
+      - task: docker-build
+        vars:
+          DOCKER_IMAGE: sshpotdb:latest
+          DIR: ./db
+    cmds:
+      - task: docker-build
+        vars:
+          DOCKER_IMAGE: botpot:latest
+
+  docker-build:
+    label: image {{.DOCKER_IMAGE}}
+    internal: true
+    run: when_changed
+    cmds:
+      - cd {{.DIR}} && docker build --file {{.DOCKER_FILE}} -t {{.DOCKER_IMAGE}} .
+    vars:
+      DOCKER_FILE: '{{default "Dockerfile" .DOCKER_FILE}}'
+      DIR: '{{default "." .DIR}}'

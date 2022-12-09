@@ -79,7 +79,7 @@ func (s *Parser) parseInfo(packets []packet) error {
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Write: %d %s  %d", p.RequestID, p.Handle, p.Offset)
+			s.l.Info().Msgf("Write: %d %s %d", p.RequestID, p.Handle, p.Offset)
 		case sshFXPMkdir:
 			p := Mkdir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {

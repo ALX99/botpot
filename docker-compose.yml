@@ -2,21 +2,18 @@ version: '3.5'
 
 services:
   db:
-    build:
-      context: ./db/
-      dockerfile: Dockerfile
+    image: sshpotdb:latest
     restart: always
     environment:
       POSTGRES_PASSWORD: example
-    network_mode: host
-    # ports:
-    #   - "127.0.0.1:5432:5432"
+    ports:
+      - "127.0.0.1:5432:5432"
     # networks:
     #   - default
-  grafana:
-    image: grafana/grafana-oss
-    restart: always
-    network_mode: host
+#   grafana:
+#     image: grafana/grafana-oss
+#     restart: always
+#     network_mode: host
 
   botpot:
     image: botpot:latest
@@ -25,12 +22,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./keys:/keys:ro
-    network_mode: host
     # ports:
     #   - "127.0.0.1:2000:2000"
     # networks:
     #   - default
-
-networks:
-  default:
-    driver: bridge
