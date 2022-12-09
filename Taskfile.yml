@@ -7,6 +7,7 @@ vars:
 tasks:
   clean:
     - rm -rf ./build
+    - docker-compose down
 
   build:
     sources:
