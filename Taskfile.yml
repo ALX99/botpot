@@ -24,8 +24,8 @@ tasks:
       - task: keys
       - task: docker-build
         vars:
-          DOCKER_FILE: sshpot/Dockerfile
-          DOCKER_IMAGE: sshpot:latest
+          DOCKER_FILE: honeypot/Dockerfile
+          DOCKER_IMAGE: honeypot:latest
       - task: docker-build
         vars:
           DOCKER_IMAGE: sshpotdb:latest

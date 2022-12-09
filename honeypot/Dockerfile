@@ -1,7 +1,7 @@
 FROM alpine:latest
 
-COPY ./sshpot/entrypoint /entrypoint
-COPY ./sshpot/createuser /bin/createuser
+COPY ./honeypot/entrypoint /entrypoint
+COPY ./honeypot/createuser /bin/createuser
 COPY ./build/keys/*.pub /keys/
 
 RUN apk add --no-cache openssh asciinema curl util-linux bash \
