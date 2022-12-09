@@ -18,6 +18,14 @@ tasks:
     cmds:
       - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
 
+  start:
+    deps: [image]
+    cmds:
+      - docker-compose up -d
+
+  stop:
+    - docker-compose stop
+
   image:
     deps:
       - task: build
