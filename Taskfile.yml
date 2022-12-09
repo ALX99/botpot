@@ -20,6 +20,7 @@ tasks:
   image:
     deps:
       - task: build
+      - task: keys
       - task: docker-build
         vars:
           DOCKER_FILE: sshpot/Dockerfile
@@ -42,3 +43,20 @@ tasks:
     vars:
       DOCKER_FILE: '{{default "Dockerfile" .DOCKER_FILE}}'
       DIR: '{{default "." .DIR}}'
+
+  keys:
+    cmds:
+      - mkdir -p {{.KEY_DIR}}
+      - ssh-keygen -t rsa -N "" -f {{.KEY_DIR}}/rsa.pem
+      - ssh-keygen -t ed25519 -N "" -f {{.KEY_DIR}}/ed25519.pem
+      - ssh-keygen -t ecdsa -b 256 -N "" -f {{.KEY_DIR}}/ecdsa256.pem
+      - ssh-keygen -t ecdsa -b 384 -N "" -f {{.KEY_DIR}}/ecdsa384.pem
+      - ssh-keygen -t ecdsa -b 521 -N "" -f {{.KEY_DIR}}/ecdsa521.pem
+    status:
+      - test -f {{.KEY_DIR}}/rsa.pem
+      - test -f {{.KEY_DIR}}/ed25519.pem
+      - test -f {{.KEY_DIR}}/ecdsa256.pem
+      - test -f {{.KEY_DIR}}/ecdsa384.pem
+      - test -f {{.KEY_DIR}}/ecdsa521.pem
+    vars:
+      KEY_DIR: ./build/keys

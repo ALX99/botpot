@@ -2,7 +2,7 @@ FROM alpine:latest
 
 COPY ./sshpot/entrypoint /entrypoint
 COPY ./sshpot/createuser /bin/createuser
-COPY ./keys /keys
+COPY ./build/keys /keys
 
 RUN apk add --no-cache openssh asciinema curl util-linux bash \
     && ssh-keygen -A \
