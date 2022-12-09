@@ -8,12 +8,6 @@ services:
       POSTGRES_PASSWORD: example
     ports:
       - "127.0.0.1:5432:5432"
-    # networks:
-    #   - default
-#   grafana:
-#     image: grafana/grafana-oss
-#     restart: always
-#     network_mode: host
 
   botpot:
     image: botpot:latest
@@ -22,7 +16,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./build/keys:/keys:ro
-    # ports:
-    #   - "127.0.0.1:2000:2000"
-    # networks:
-    #   - default
+    ports:
+      - "127.0.0.1:2000:2000"
+
+#   grafana:
+#     image: grafana/grafana-oss
+#     restart: always
+#     network_mode: host

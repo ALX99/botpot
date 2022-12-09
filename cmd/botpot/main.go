@@ -38,8 +38,8 @@ func main() {
 		container.Config{Image: cfg.HoneypotImage,
 			Env: []string{},
 		},
-		container.HostConfig{Privileged: false, PublishAllPorts: true},
-		network.NetworkingConfig{},
+		container.HostConfig{Privileged: false },
+		network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{cfg.DockerNetwork: {}}},
 		specs.Platform{},
 		cfg.HostBuffer,
 	)

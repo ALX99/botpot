@@ -11,6 +11,7 @@ type Config struct {
 	LogLevel          string `env:"LOG_LEVEL`
 	PGHost            string `env:"PG_HOST"`
 	DockerHost        string `env:"DOCKER_HOST"`
+	DockerNetwork     string `env:"DOCKER_NETWORK_NAME"`
 	HoneypotImage     string `env:"HONEYPOT_IMAGE"`
 	SSHHostKeys       []string
 	SSHHostKeysString string `env:"SSH_HOST_KEYS"`

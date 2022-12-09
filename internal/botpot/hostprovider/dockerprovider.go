@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -226,9 +227,26 @@ func (d *DockerProvider) GetHost() (string, string, error) {
 		return "", "", err
 	}
 	H.SetOccupied(true)
+
+	// Obtain network name
+	networkName := ""
+	for k := range d.networkConfig.EndpointsConfig {
+		networkName = k
+		break
+	}
+
+	if networkName == "" {
+		return "", "", errors.New("could not obtain network name")
+	}
+
+	endPointSettings, ok := res.NetworkSettings.Networks[networkName]
+	if !ok {
+		return "", "", errors.New("could not find network name")
+	}
+
 	// TODO this has to be fixed not to always return localhost
-	// and not always assume that 2222/tcp is the ssh port
-	return fmt.Sprintf("127.0.0.1:%s", res.NetworkSettings.Ports["22/tcp"][0].HostPort), H.ID(), err
+	// and not always assume that 22/tcp is the ssh port
+	return fmt.Sprintf("%s:22", endPointSettings.IPAddress), H.ID(), err
 }
 
 // GetScriptOutput gets the script output and timing files
