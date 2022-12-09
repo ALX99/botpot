@@ -3,7 +3,7 @@ module github.com/alx99/botpot
 go 1.18
 
 require (
-	github.com/alx99/envcache v0.0.0-20220910001357-c055ca2d0701
+	github.com/Netflix/go-env v0.0.0-20220526054621-78278af1949d
 	github.com/docker/docker v20.10.17+incompatible
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/opencontainers/image-spec v1.0.2
@@ -13,7 +13,6 @@ require (
 
 require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
-	github.com/Netflix/go-env v0.0.0-20220526054621-78278af1949d // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
