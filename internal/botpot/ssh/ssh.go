@@ -118,7 +118,7 @@ func (s *Server) loop() {
 			if err != nil {
 				log.Err(err).Str("id", ID).Msg("Could not get script output")
 			} else {
-				c.s.AddScriptOutput(stdout, timing)
+				c.session.AddScriptOutput(stdout, timing)
 			}
 
 			err = s.provider.StopHost(ID)
@@ -126,7 +126,7 @@ func (s *Server) loop() {
 				log.Err(err).Str("id", ID).Msg("Could not stop host")
 			}
 
-			err = s.db.BeginTx(c.s.Insert)
+			err = s.db.BeginTx(c.session.Insert)
 			if err != nil {
 				log.Err(err).Str("id", ID).Msg("Could not insert data into DB")
 			}

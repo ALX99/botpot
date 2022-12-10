@@ -20,7 +20,7 @@ type Session struct {
 	stdout  string
 	timing  string
 	l       zerolog.Logger
-	chs     []*channel.Channel
+	channels     []*channel.Channel
 	srcPort int
 	dstPort int
 }
@@ -35,7 +35,7 @@ func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session
 		start:   time.Now(),
 		version: version,
 		l:       l,
-		chs:     []*channel.Channel{},
+		channels:     []*channel.Channel{},
 	}
 
 	i := getIPInfo(srcIP)
@@ -56,7 +56,7 @@ func (s *Session) AddScriptOutput(stdout, timing string) {
 
 // AddChannel adds a channel to the session
 func (s *Session) AddChannel(ch *channel.Channel) {
-	s.chs = append(s.chs, ch)
+	s.channels = append(s.channels, ch)
 }
 
 // Insert tries to insert the data into the database
@@ -78,7 +78,7 @@ func (s *Session) Insert(tx pgx.Tx) error {
 		return err
 	}
 
-	for _, ch := range s.chs {
+	for _, ch := range s.channels {
 		err = ch.Insert(tx)
 		if err != nil {
 			return err

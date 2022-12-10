@@ -17,27 +17,28 @@ type client struct {
 	conn         ssh.Conn
 	rAddr        net.Addr
 	channelchan  <-chan ssh.NewChannel
-	p            sshProxy
+	proxy        sshProxy
 	l            zerolog.Logger
-	s            session.Session
+	session      session.Session
 	chanCounter  uint32
 	disconnected bool
 	wg           sync.WaitGroup
 }
 
-func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel) *client {
+func newClient(conn ssh.Conn, proxy sshProxy, channelChan <-chan ssh.NewChannel) *client {
 	l := log.With().
 		Str("version", string(conn.ClientVersion())).
 		Str("rAddr", conn.RemoteAddr().String()).
 		Logger()
+
 	s := session.NewSession(conn.RemoteAddr(), conn.LocalAddr(), string(conn.ClientVersion()), l)
 	c := client{
 		conn:         conn,
 		rAddr:        conn.RemoteAddr(),
 		channelchan:  channelChan,
-		p:            p,
+		proxy:        proxy,
 		l:            l,
-		s:            s,
+		session:      s,
 		chanCounter:  0,
 		disconnected: false,
 		wg:           sync.WaitGroup{},
@@ -49,7 +50,7 @@ func newClient(conn ssh.Conn, p sshProxy, channelChan <-chan ssh.NewChannel) *cl
 
 // handle handles the client and blocks until client has disconnected
 func (c *client) handle(reqChan <-chan *ssh.Request) {
-	err := c.p.Connect()
+	err := c.proxy.Connect()
 	if err != nil {
 		c.l.Err(err).Msg("Could not connect to proxy")
 		c.conn.Close()
@@ -59,19 +60,18 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	c.l.Info().Msg("Connected to proxy")
 	c.wg.Add(2)
 	go c.handleChannels()
-	go c.handleGlobalRequests(c.p.client, reqChan, true) // client to proxy
+	go c.handleGlobalRequests(c.proxy.client, reqChan, true) // client to proxy
 
 	// Wait for proxy to disconnect
 	go func() {
-		c.p.Wait()
+		c.proxy.Wait()
 		if c.disconnected {
 			return
 		}
 		c.l.Err(errors.New("proxy disconnected without client")).Msg("Something went wrong")
 
 		// Disconnect client, something has gone wrong
-		err := c.conn.Close()
-		if err != nil {
+		if err = c.conn.Close(); err != nil {
 			c.l.Err(err).Msg("Error while disconnecting client")
 		}
 		c.disconnected = true
@@ -82,9 +82,9 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	c.conn.Wait()
 	c.disconnected = true
 
-	c.s.Stop()
+	c.session.Stop()
 
-	err = c.p.Disconnect()
+	err = c.proxy.Disconnect()
 	if err != nil {
 		c.l.Err(err).Msg("Error while disconnecting proxy")
 	}
@@ -94,8 +94,9 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 // handleChannels handles channel requests from the client
 func (c *client) handleChannels() {
 	for chanReq := range c.channelchan {
-		ch := channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.p.client, c.l)
-		c.s.AddChannel(ch)
+		ch := channel.NewChannel(atomic.AddUint32(&c.chanCounter, 1), chanReq, c.proxy.client, c.l)
+		ch.Handle()
+		c.session.AddChannel(ch)
 	}
 	c.wg.Done()
 }
