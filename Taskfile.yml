@@ -30,7 +30,7 @@ tasks:
       TEST_IMAGE: { sh: docker run -d -p 2001:22 alx99/priv:honeypot }
 
   start:
-    deps: [image]
+    deps: [image, keys]
     cmds:
       - docker-compose up -d
 
@@ -40,7 +40,6 @@ tasks:
   image:
     deps:
       - task: build
-      - task: keys
       - task: docker-build
         vars:
           DOCKER_FILE: honeypot/Dockerfile

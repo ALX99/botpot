@@ -15,13 +15,13 @@ type sshProxy struct {
 	host    string
 }
 
-func newSSHProxy(host, user string, keys []ssh.Signer) sshProxy {
+func newSSHProxy(host, user string) sshProxy {
 	p := sshProxy{host: host}
 
 	p.cfg = &ssh.ClientConfig{
 		User:            user,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(keys...)},
+		Auth:            []ssh.AuthMethod{}, // No auth
 	}
 	return p
 }

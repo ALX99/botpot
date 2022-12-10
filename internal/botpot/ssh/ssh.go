@@ -18,7 +18,6 @@ type Server struct {
 	cfg       *ssh.ServerConfig
 	db        *db.DB
 	keypaths  []string
-	keys      []ssh.Signer
 	port      int
 	lIsClosed bool
 }
@@ -32,7 +31,6 @@ func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB
 		db:        database,
 		port:      port,
 		keypaths:  keyPaths,
-		keys:      []ssh.Signer{},
 		lIsClosed: false,
 	}
 	s.cfg = &ssh.ServerConfig{
@@ -54,7 +52,6 @@ func (s *Server) Start() error {
 			return err
 		}
 		s.cfg.AddHostKey(hostKey)
-		s.keys = append(s.keys, hostKey)
 	}
 
 	var err error
@@ -109,7 +106,7 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
-		p := newSSHProxy(host, "root", s.keys)
+		p := newSSHProxy(host, "root")
 
 		// Create new client
 		c := newClient(sshConn, p, channelChan)

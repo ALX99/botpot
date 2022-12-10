@@ -34,6 +34,6 @@ Verify same SSH output
     ${res1}=    Sh
     ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${honeypot}[0] -p ${honeypot}[1] ${cmd}
     ${res2}=    Sh
-    ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${ssh_server}[0] -p ${ssh_server}[1] -i ./build/keys/ecdsa521.pem ${cmd}
+    ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${ssh_server}[0] -p ${ssh_server}[1] ${cmd}
 
     Should Be Equal As Strings    ${res1.stdout}    ${res2.stdout}
