@@ -2,7 +2,7 @@ version: '3.5'
 
 services:
   db:
-    image: sshpotdb:latest
+    image: alx99/priv:botpotdb
     restart: always
     environment:
       POSTGRES_PASSWORD: example
@@ -10,7 +10,7 @@ services:
       - "127.0.0.1:5432:5432"
 
   botpot:
-    image: botpot:latest
+    image: alx99/priv:botpot
     restart: always
     env_file: botpot.env
     volumes:

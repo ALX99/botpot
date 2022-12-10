@@ -27,7 +27,7 @@ tasks:
       - sleep 1 # Takes a while for SSH server to start
       - robot -X --exitonerror ./tests/e2e.robot
     vars:
-      TEST_IMAGE: { sh: docker run -d -p 2001:22 honeypot:latest }
+      TEST_IMAGE: { sh: docker run -d -p 2001:22 alx99/priv:honeypot }
 
   start:
     deps: [image]
@@ -44,15 +44,15 @@ tasks:
       - task: docker-build
         vars:
           DOCKER_FILE: honeypot/Dockerfile
-          DOCKER_IMAGE: honeypot:latest
+          DOCKER_IMAGE: alx99/priv:honeypot
       - task: docker-build
         vars:
-          DOCKER_IMAGE: sshpotdb:latest
+          DOCKER_IMAGE: alx99/priv:botpotdb
           DIR: ./db
     cmds:
       - task: docker-build
         vars:
-          DOCKER_IMAGE: botpot:latest
+          DOCKER_IMAGE: alx99/priv:botpot
 
   docker-build:
     label: image {{.DOCKER_IMAGE}}
