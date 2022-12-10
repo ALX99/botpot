@@ -15,5 +15,11 @@ jobs:
           go-version: '^1.19'
       - name: Install task
         run: sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d
-      - name: Build the Docker image
+      - name: Build docker images
         run: ./bin/task image
+      - name: Push docker images
+        run: |
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u alx99 --password-stdin docker.io
+          docker push docker.io/alx99/botpot:latest
+          docker push docker.io/alx99/botpotdb:latest
+          docker push docker.io/alx99/honeypot:latest
