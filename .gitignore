@@ -1,1 +1,6 @@
 build/*
+
+# Robotframework output
+output.xml
+log.html
+report.html

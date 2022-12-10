@@ -18,6 +18,17 @@ tasks:
     cmds:
       - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
 
+  test:
+    deps:
+      - start
+    cmds:
+      - defer: { task: stop }
+      - defer: sh -c 'docker container stop {{.TEST_IMAGE}}; docker container rm {{.TEST_IMAGE}}'
+      - sleep 1 # Takes a while for SSH server to start
+      - robot -X --exitonerror ./tests/e2e.robot
+    vars:
+      TEST_IMAGE: { sh: docker run -d -p 2001:22 honeypot:latest }
+
   start:
     deps: [image]
     cmds:
