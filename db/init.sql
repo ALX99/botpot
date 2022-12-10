@@ -14,7 +14,7 @@ CREATE TABLE Session (
     start_ts timestamptz NOT NULL,
     end_ts timestamptz NOT NULL,
     PRIMARY KEY (id),
-    CONSTRAINT fk_ip FOREIGN KEY (src_ip) REFERENCES IP (ip_address),
+    CONSTRAINT fk_ip FOREIGN KEY (src_ip) REFERENCES IP (ip_address) ON DELETE CASCADE,
     CONSTRAINT valid_port CHECK (
         src_port BETWEEN 0 AND 65535
         AND dst_port BETWEEN 0 AND 65535
@@ -30,7 +30,7 @@ CREATE TABLE Channel (
     start_ts timestamptz NOT NULL,
     end_ts timestamptz NOT NULL,
     PRIMARY KEY (id, session_id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id) REFERENCES Session (id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id) REFERENCES Session (id) ON DELETE CASCADE,
     CONSTRAINT end_time_after_start_time CHECK (start_ts <= end_ts)
 );
 CREATE TABLE PTYRequest (
@@ -46,7 +46,7 @@ CREATE TABLE PTYRequest (
     height int NOT NULL,
     modelist bytea NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE ExecRequest (
     id serial NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE ExecRequest (
     from_client boolean NOT NULL,
     command text NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE ExitStatusRequest (
     id serial NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE ExitStatusRequest (
     from_client boolean NOT NULL,
     exit_status int NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE ShellRequest (
     id serial NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE ShellRequest (
     ts timestamptz NOT NULL,
     from_client boolean NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE WindowDimensionChangeRequest (
     id serial NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE WindowDimensionChangeRequest (
     width int NOT NULL,
     height int NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE EnvironmentRequest (
     id serial NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE EnvironmentRequest (
     name text NOT NULL,
     value text NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
 CREATE TABLE SubSystemRequest (
     id serial NOT NULL,
@@ -109,5 +109,5 @@ CREATE TABLE SubSystemRequest (
     from_client boolean NOT NULL,
     name text NOT NULL,
     PRIMARY KEY (session_id, channel_id, id),
-    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id)
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
