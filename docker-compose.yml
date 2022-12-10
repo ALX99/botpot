@@ -18,6 +18,8 @@ services:
       - ./build/keys:/keys:ro
     ports:
       - "127.0.0.1:2000:2000"
+    depends_on:
+      - db
 
 #   grafana:
 #     image: grafana/grafana-oss
