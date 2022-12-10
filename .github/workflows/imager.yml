@@ -13,5 +13,7 @@ jobs:
       - uses: actions/setup-go@v3
       - name: Install task
         run: go install github.com/go-task/task/v3/cmd/task@latest
+      - name: test
+        run: go env
       - name: Build the Docker image
         run: task image
