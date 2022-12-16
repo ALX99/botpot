@@ -13,6 +13,7 @@ tasks:
     sources:
       - ./internal/**/*.go
       - ./cmd/botpot/main.go
+      - ./go.mod
     generates:
       - ./build/botpot
     cmds:
