@@ -1,6 +1,7 @@
 package sftp
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 )
@@ -10,50 +11,66 @@ var (
 )
 
 type packetBuffer struct {
-	buf []byte
-	pos uint64
-	len uint64
+	buf *bytes.Buffer
+	len int
 }
 
 func newPacketBuffer(data []byte) packetBuffer {
 	return packetBuffer{
-		buf: data,
-		pos: 0,
-		len: uint64(len(data)),
+		buf: bytes.NewBuffer(data),
+		len: len(data),
 	}
 }
 
 func (pb *packetBuffer) getRemainingBytes() []byte {
-	return pb.buf[pb.pos:]
+	v := make([]byte, pb.len)
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return []byte{}
+	}
+	return v
+}
+
+func (pb *packetBuffer) readUint8() (uint8, error) {
+	var v uint8
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return 0, err
+	}
+	return v, nil
 }
 
 func (pb *packetBuffer) readUint32() (uint32, error) {
-	pb.pos += 4
-	if pb.pos > pb.len {
-		return 0, errShortPacket
+	var v uint32
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return 0, err
 	}
-	return binary.BigEndian.Uint32(pb.buf[pb.pos-4 : pb.pos]), nil
+	return v, nil
 }
 
 func (pb *packetBuffer) readUint64() (uint64, error) {
-	pb.pos += 8
-	if pb.pos > pb.len {
-		return 0, errShortPacket
+	var v uint64
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return 0, err
 	}
-	return binary.BigEndian.Uint64(pb.buf[pb.pos-8 : pb.pos]), nil
+	return v, nil
+}
+
+func (pb *packetBuffer) readInt64() (int64, error) {
+	var v int64
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return 0, err
+	}
+	return v, nil
 }
 
 func (pb *packetBuffer) readUTF8() (string, error) {
-	if pb.pos+4 > pb.len {
-		return "", errShortPacket
+	var strLen uint32
+	if err := binary.Read(pb.buf, binary.BigEndian, &strLen); err != nil {
+		return "", err
 	}
-	pb.pos += 4
 
-	strLen := uint64(binary.BigEndian.Uint32(pb.buf[pb.pos-4 : pb.pos]))
-	if pb.pos+strLen > pb.len {
-		return "", errShortPacket
+	v := make([]byte, strLen)
+	if err := binary.Read(pb.buf, binary.BigEndian, &v); err != nil {
+		return "", err
 	}
-	pb.pos += strLen
-
-	return string(pb.buf[pb.pos-strLen : pb.pos]), nil
+	return string(v), nil
 }
