@@ -39,13 +39,24 @@ const (
 	sshFXPExtendedReply = 201
 )
 
-// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-5
+// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-7.1
 const (
-	sshFileExferAttrSize        = 0x00000001
-	sshFileExferAttrUIDGID      = 0x00000002
-	sshFileExferAttrPermissions = 0x00000004
-	sshFileExferAttrACModTime   = 0x00000008
-	sshFileExferAttrExtended    = 0x80000000
+	sshFilexferAttrSize             = 0x00000001
+	sshFilexferAttrPermissions      = 0x00000004
+	sshFilexferAttrAccessTime       = 0x00000008
+	sshFilexferAttrCreateTime       = 0x00000010
+	sshFilexferAttrModifyTime       = 0x00000020
+	sshFilexferAttrACL              = 0x00000040
+	sshFilexferAttrOwnergroup       = 0x00000080
+	sshFilexferAttrSubsecondTimes   = 0x00000100
+	sshFilexferAttrBits             = 0x00000200
+	sshFilexferAttrAllocationSize   = 0x00000400
+	sshFilexferAttrTextHint         = 0x00000800
+	sshFilexferAttrMimeType         = 0x00001000
+	sshFilexferAttrLinkCount        = 0x00002000
+	sshFilexferAttrUntranslatedName = 0x00004000
+	sshFilexferAttrCTime            = 0x00008000
+	sshFilexferAttrExtended         = 0x80000000
 )
 
 // Init SSH_FXP_INIT C->S
@@ -70,9 +81,10 @@ type Version struct {
 
 // Open SSH_FXP_OPEN C->S
 type Open struct {
-	Filename  string // UTF-8
-	Attrs     FileAttributes
-	PFlags    uint32
+	Filename      string // UTF-8
+	Attrs         FileAttributes
+	Flags         uint32
+	DesiredAccess uint32
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
@@ -83,16 +95,23 @@ func (p *Open) UnmarshalBinary(data []byte) error {
 	if p.Filename, err = pb.readUTF8(); err != nil {
 		return err
 	}
-	if p.PFlags, err = pb.readUint32(); err != nil {
+	if p.DesiredAccess, err = pb.readUint32(); err != nil {
+		return err
+	}
+	if p.Flags, err = pb.readUint32(); err != nil {
 		return err
 	}
 
-	return p.Attrs.UnmarshalBinary(pb.getRemainingBytes())
+	b := pb.getRemainingBytes()
+	if len(b) > 0 {
+		return p.Attrs.UnmarshalBinary(b)
+	}
+	return nil
 }
 
 // Close SSH_FXP_CLOSE C->S
 type Close struct {
-	Handle    string
+	Handle string
 }
 
 func (p *Close) UnmarshalBinary(data []byte) error {
@@ -110,9 +129,9 @@ func (p *Close) UnmarshalBinary(data []byte) error {
 
 // Read SSH_FXP_READ C->S
 type Read struct {
-	Handle    string
-	Offset    uint64
-	Length    uint32
+	Handle string
+	Offset uint64
+	Length uint32
 }
 
 func (p *Read) UnmarshalBinary(data []byte) error {
@@ -140,9 +159,9 @@ func (p *Read) UnmarshalBinary(data []byte) error {
 
 // Write SSH_FXP_WRITE C->S
 type Write struct {
-	Handle    string
-	Data      string
-	Offset    uint64
+	Handle string
+	Data   string
+	Offset uint64
 }
 
 func (p *Write) UnmarshalBinary(data []byte) error {
@@ -170,7 +189,7 @@ func (p *Write) UnmarshalBinary(data []byte) error {
 
 // Remove SSH_FXP_REMOVE C->S
 type Remove struct {
-	Filename  string // UTF-8
+	Filename string // UTF-8
 }
 
 func (p *Remove) UnmarshalBinary(data []byte) error {
@@ -188,9 +207,9 @@ func (p *Remove) UnmarshalBinary(data []byte) error {
 
 // Rename SSH_FXP_RENAME C->S
 type Rename struct {
-	OldPath   string // UTF-8
-	NewPath   string // UTF-8
-	Flags     uint32
+	OldPath string // UTF-8
+	NewPath string // UTF-8
+	Flags   uint32
 }
 
 func (p *Rename) UnmarshalBinary(data []byte) error {
@@ -214,8 +233,8 @@ func (p *Rename) UnmarshalBinary(data []byte) error {
 
 // Mkdir SSH_FXP_MKDIR C->S
 type Mkdir struct {
-	Path      string
-	Attrs     FileAttributes
+	Path  string
+	Attrs FileAttributes
 }
 
 func (p *Mkdir) UnmarshalBinary(data []byte) error {
@@ -227,12 +246,16 @@ func (p *Mkdir) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	return p.Attrs.UnmarshalBinary(pb.getRemainingBytes())
+	b := pb.getRemainingBytes()
+	if len(b) > 0 {
+		return p.Attrs.UnmarshalBinary(b)
+	}
+	return nil
 }
 
 // Rmdir SSH_FXP_RMDIR C->S
 type Rmdir struct {
-	Path      string // UTF-8
+	Path string // UTF-8
 }
 
 func (p *Rmdir) UnmarshalBinary(data []byte) error {
@@ -249,7 +272,7 @@ func (p *Rmdir) UnmarshalBinary(data []byte) error {
 
 // OpenDir SSH_FXP_OPENDIR
 type OpenDir struct {
-	Path      string
+	Path string
 }
 
 func (p *OpenDir) UnmarshalBinary(data []byte) error {
@@ -266,7 +289,7 @@ func (p *OpenDir) UnmarshalBinary(data []byte) error {
 
 // ReadDir SSH_FXP_READDIR C->S
 type ReadDir struct {
-	Handle    string
+	Handle string
 }
 
 func (p *ReadDir) UnmarshalBinary(data []byte) error {
@@ -283,7 +306,7 @@ func (p *ReadDir) UnmarshalBinary(data []byte) error {
 
 // Stat SSH_FXP_STAT
 type Stat struct {
-	Path      string // UTF-8
+	Path string // UTF-8
 }
 
 func (p *Stat) UnmarshalBinary(data []byte) error {
@@ -300,7 +323,7 @@ func (p *Stat) UnmarshalBinary(data []byte) error {
 
 // Lstat or SSH_FXP_LSTAT
 type Lstat struct {
-	Path      string // UTF-8
+	Path string // UTF-8
 }
 
 func (p *Lstat) UnmarshalBinary(data []byte) error {
@@ -317,7 +340,7 @@ func (p *Lstat) UnmarshalBinary(data []byte) error {
 
 // FStat SSH_FXP_FSTAT C->S
 type FStat struct {
-	Handle    string
+	Handle string
 }
 
 func (p *FStat) UnmarshalBinary(data []byte) error {
@@ -334,16 +357,16 @@ func (p *FStat) UnmarshalBinary(data []byte) error {
 
 // SetStat SSH_FXP_SETSTAT C->S
 type SetStat struct {
-	Path      string // UTF-8
-	Attrs     []byte // todo
+	Path  string // UTF-8
+	Attrs []byte // todo
 }
 
 func (p *SetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // FSetStat SSH_FXP_FSETSTAT C->S
 type FSetStat struct {
-	Handle    string
-	Attrs     []byte // todo
+	Handle string
+	Attrs  []byte // todo
 }
 
 func (p *FSetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
@@ -352,14 +375,14 @@ func (p *FSetStat) UnmarshalBinary(data []byte) error { return errors.New("not i
 type RealPath struct {
 	OriginalPath string   // UTF-8
 	ComposePath  []string // optional
-	ControlByte  byte // optional
+	ControlByte  byte     // optional
 }
 
 func (p *RealPath) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Readlink SSH_FXP_READLINK C->S
 type Readlink struct {
-	Path      string // UTF-8
+	Path string // UTF-8
 }
 
 func (p *Readlink) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
@@ -394,7 +417,7 @@ type Unblock struct {
 	// Offset is the beggining of the byte-range to unlock
 	Offset uint64
 	// Number  of bytes to unlock
-	Length    uint64
+	Length uint64
 }
 
 func (p *Unblock) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
@@ -410,32 +433,32 @@ func (p *Status) UnmarshalBinary(data []byte) error { return errors.New("not imp
 
 // Handle SSH_FXP_HANDLE S->C
 type Handle struct {
-	Handle    string
+	Handle string
 }
 
 func (p *Handle) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Data SSH_FXP_DATA S->C
 type Data struct {
-	Data      string
-	EOF       bool
+	Data string
+	EOF  bool
 }
 
 func (p *Data) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Name SSH_FXP_NAME S->C
 type Name struct {
-	Filename  []string // Count times
-	Attrs     []byte   // Count times, Todo Attrs structure
-	Count     uint32
-	EOL       bool // Optional
+	Filename []string // Count times
+	Attrs    []byte   // Count times, Todo Attrs structure
+	Count    uint32
+	EOL      bool // Optional
 }
 
 func (p *Name) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
 // Attrs SSH_FXP_ATTRS
 type Attrs struct {
-	Attrs     []byte //  Todo Attrs structure
+	Attrs []byte //  Todo Attrs structure
 }
 
 func (p *Attrs) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
@@ -455,18 +478,30 @@ type ExtendedReply struct {
 
 func (p *ExtendedReply) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
 
-// FileAttributes https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-5
+// FileAttributes https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-7
 type FileAttributes struct {
-	ExtendedType  []string
-	ExtendedData  []string
-	Size          uint64
-	Flags         uint32
-	Permissions   uint32
-	Atime         uint32
-	Mtime         uint32
-	ExtendedCount uint32
-	UID           uint32
-	GID           uint32
+	Owner              string
+	UntranslatedName   string
+	MimeType           string
+	ACL                string
+	Group              string
+	ExtendedData       []string
+	ExtendedType       []string
+	Size               uint64
+	AllocationSize     uint64
+	Atime              int64
+	CreateTime         int64
+	CTime              int64
+	Permissions        uint32
+	CTimeNSeconds      uint32
+	CreateTimeNSeconds uint32
+	AttribBits         uint32
+	AttribBitsValid    uint32
+	AtimeNSeconds      uint32
+	LinkCount          uint32
+	Flags              uint32
+	ExtendedCount      uint32
+	TextHint           byte
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
@@ -478,42 +513,109 @@ func (fa *FileAttributes) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	if fa.Flags&sshFileExferAttrSize != 0 {
+	if fa.Flags&sshFilexferAttrSize != 0 {
 		if fa.Size, err = pb.readUint64(); err != nil {
 			return err
 		}
 	}
 
-	if fa.Flags&sshFileExferAttrUIDGID != 0 {
-		if fa.UID, err = pb.readUint32(); err != nil {
-			return err
-		}
-		if fa.GID, err = pb.readUint32(); err != nil {
+	if fa.Flags&sshFilexferAttrAllocationSize != 0 {
+		if fa.AllocationSize, err = pb.readUint64(); err != nil {
 			return err
 		}
 	}
 
-	if fa.Flags&sshFileExferAttrPermissions != 0 {
+	if fa.Flags&sshFilexferAttrOwnergroup != 0 {
+		if fa.Owner, err = pb.readUTF8(); err != nil {
+			return err
+		}
+		if fa.Group, err = pb.readUTF8(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrPermissions != 0 {
 		if fa.Permissions, err = pb.readUint32(); err != nil {
 			return err
 		}
 	}
 
-	if fa.Flags&sshFileExferAttrACModTime != 0 {
-		if fa.Atime, err = pb.readUint32(); err != nil {
+	if fa.Flags&sshFilexferAttrAccessTime != 0 {
+		if fa.Atime, err = pb.readInt64(); err != nil {
 			return err
 		}
-		if fa.Mtime, err = pb.readUint32(); err != nil {
+		if fa.Flags&sshFilexferAttrSubsecondTimes != 0 {
+			if fa.AtimeNSeconds, err = pb.readUint32(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrCreateTime != 0 {
+		if fa.CreateTime, err = pb.readInt64(); err != nil {
+			return err
+		}
+		if fa.Flags&sshFilexferAttrSubsecondTimes != 0 {
+			if fa.CreateTimeNSeconds, err = pb.readUint32(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrCTime != 0 {
+		if fa.CTime, err = pb.readInt64(); err != nil {
+			return err
+		}
+		if fa.Flags&sshFilexferAttrSubsecondTimes != 0 {
+			if fa.CTimeNSeconds, err = pb.readUint32(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrACL != 0 {
+		if fa.ACL, err = pb.readUTF8(); err != nil {
 			return err
 		}
 	}
 
-	if fa.Flags&sshFileExferAttrExtended == 0 {
-		return nil
+	if fa.Flags&sshFilexferAttrBits != 0 {
+		if fa.AttribBits, err = pb.readUint32(); err != nil {
+			return err
+		}
+		if fa.AttribBitsValid, err = pb.readUint32(); err != nil {
+			return err
+		}
 	}
 
-	if fa.ExtendedCount, err = pb.readUint32(); err != nil {
-		return err
+	if fa.Flags&sshFilexferAttrTextHint != 0 {
+		if fa.TextHint, err = pb.readUint8(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrMimeType != 0 {
+		if fa.MimeType, err = pb.readUTF8(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrLinkCount != 0 {
+		if fa.LinkCount, err = pb.readUint32(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrUntranslatedName != 0 {
+		if fa.UntranslatedName, err = pb.readUTF8(); err != nil {
+			return err
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrExtended != 0 {
+		if fa.ExtendedCount, err = pb.readUint32(); err != nil {
+			return err
+		}
 	}
 
 	fa.ExtendedType = make([]string, fa.ExtendedCount)
