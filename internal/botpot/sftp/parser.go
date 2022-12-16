@@ -67,37 +67,37 @@ func (s *Parser) parseInfo(packets []packet) error {
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Close: %d %s", p.RequestID, p.Handle)
+			s.l.Info().Msgf("Close: %d %s", packet.requestID, p.Handle)
 		case sshFXPRead:
 			p := Read{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Read: %d %d", p.RequestID, p.Offset)
+			s.l.Info().Msgf("Read: %d %d", packet.requestID, p.Offset)
 		case sshFXPWrite:
 			p := Write{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Write: %d %s %d", p.RequestID, p.Handle, p.Offset)
+			s.l.Info().Msgf("Write: %d %s %d", packet.requestID, p.Handle, p.Offset)
 		case sshFXPMkdir:
 			p := Mkdir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Mkdir: %d %s", p.RequestID, p.Path)
+			s.l.Info().Msgf("Mkdir: %d %s", packet.requestID, p.Path)
 		case sshFXPOpenDir:
 			p := OpenDir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Opendir: %d %s", p.RequestID, p.Path)
+			s.l.Info().Msgf("Opendir: %d %s", packet.requestID, p.Path)
 		case sshFXPReadDir:
 			p := ReadDir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Readdir: %d %s", p.RequestID, p.Handle)
+			s.l.Info().Msgf("Readdir: %d %s", packet.requestID, p.Handle)
 		default:
 			// s.l.Warn().Uint8("type", p.pType).Msg("Did not understand SFTP packet")
 		}
@@ -107,11 +107,14 @@ func (s *Parser) parseInfo(packets []packet) error {
 
 // readPacket reads a single SFTP packet
 func readPacket(r io.Reader) (packet, error) {
+	// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-4
 	var len uint32
 	err := binary.Read(r, binary.BigEndian, &len)
 	if err != nil {
 		return packet{}, err
 	}
+
+	var readBytes uint32 = 1
 
 	var pType byte
 	err = binary.Read(r, binary.BigEndian, &pType)
@@ -119,11 +122,25 @@ func readPacket(r io.Reader) (packet, error) {
 		return packet{}, err
 	}
 
-	buf := make([]byte, len-1) // -1 since length includes type
+	var requestID uint32 = 0
+	if pType != sshFXPInit && pType != sshFXPVersion {
+		readBytes += 4
+		err = binary.Read(r, binary.BigEndian, &requestID)
+		if err != nil {
+			return packet{}, err
+		}
+	}
+
+	buf := make([]byte, len-readBytes)
 	err = binary.Read(r, binary.BigEndian, buf)
 	if err != nil {
 		return packet{}, err
 	}
 
-	return packet{length: len, pType: pType, data: buf}, nil
+	return packet{
+		data:      buf,
+		length:    len,
+		pType:     pType,
+		requestID: requestID,
+	}, nil
 }
