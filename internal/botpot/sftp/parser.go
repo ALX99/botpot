@@ -98,8 +98,53 @@ func (s *Parser) parseInfo(packets []packet) error {
 				return err
 			}
 			s.l.Info().Msgf("Readdir: %d %s", packet.requestID, p.Handle)
+		case sshFXPFsetStat:
+			p := FSetStat{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPRealPath:
+			p := RealPath{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPStat:
+			p := Stat{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPLStat:
+			p := LStat{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPFStat:
+			p := FStat{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPSetStat:
+			p := SetStat{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPReadLink:
+			p := ReadLink{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPLink:
+			p := Link{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
+		case sshFXPExtended:
+			p := Extended{}
+			if err := p.UnmarshalBinary(packet.data); err != nil {
+				return err
+			}
 		default:
-			// s.l.Warn().Uint8("type", p.pType).Msg("Did not understand SFTP packet")
+			s.l.Warn().Uint8("type", packet.pType).Msg("Did not understand SFTP packet")
 		}
 	}
 	return nil

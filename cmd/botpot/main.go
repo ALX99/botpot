@@ -83,6 +83,7 @@ func main() {
 }
 
 func setup() config.Config {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 

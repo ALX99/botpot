@@ -12,8 +12,8 @@ const (
 	sshFXPClose    = 4
 	sshFXPRead     = 5
 	sshFXPWrite    = 6
-	sshFXPLstat    = 7
-	sshFXPFstat    = 8
+	sshFXPLStat    = 7
+	sshFXPFStat    = 8
 	sshFXPSetStat  = 9
 	sshFXPFsetStat = 10
 	sshFXPOpenDir  = 11
@@ -24,7 +24,7 @@ const (
 	sshFXPRealPath = 16
 	sshFXPStat     = 17
 	sshFXPRename   = 18
-	sshFXPReadlink = 19
+	sshFXPReadLink = 19
 	sshFXPLink     = 21
 	sshFXPBlock    = 22
 	sshFXPUnblock  = 23
@@ -118,7 +118,6 @@ func (p *Close) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
-	// TODO not sure this one is working
 	p.Handle, err = pb.readUTF8()
 	if err != nil {
 		return err
@@ -138,7 +137,6 @@ func (p *Read) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
-	// TODO not sure this one is working
 	p.Handle, err = pb.readUTF8()
 	if err != nil {
 		return err
@@ -168,7 +166,6 @@ func (p *Write) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
-	// TODO not sure this one is working
 	p.Handle, err = pb.readUTF8()
 	if err != nil {
 		return err
@@ -196,7 +193,6 @@ func (p *Remove) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
-	// TODO not sure this one is working
 	p.Filename, err = pb.readUTF8()
 	if err != nil {
 		return err
@@ -216,14 +212,17 @@ func (p *Rename) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
-	// TODO not sure this one is working
 	p.OldPath, err = pb.readUTF8()
 	if err != nil {
 		return err
 	}
 
-	// TODO not sure this one is working
 	p.NewPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	p.Flags, err = pb.readUint32()
 	if err != nil {
 		return err
 	}
@@ -306,7 +305,8 @@ func (p *ReadDir) UnmarshalBinary(data []byte) error {
 
 // Stat SSH_FXP_STAT
 type Stat struct {
-	Path string // UTF-8
+	Path  string // UTF-8
+	Flags uint32
 }
 
 func (p *Stat) UnmarshalBinary(data []byte) error {
@@ -318,19 +318,31 @@ func (p *Stat) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
+	// 	p.Flags, err = pb.readUint32()
+	// 	if err != nil {
+	// 		fmt.Println("not working", p.Path)
+	// 		return err
+	// 	}
+
 	return nil
 }
 
-// Lstat or SSH_FXP_LSTAT
-type Lstat struct {
-	Path string // UTF-8
+// LStat or SSH_FXP_LSTAT
+type LStat struct {
+	Path  string // UTF-8
+	Flags uint32
 }
 
-func (p *Lstat) UnmarshalBinary(data []byte) error {
+func (p *LStat) UnmarshalBinary(data []byte) error {
 	var err error
 	pb := newPacketBuffer(data)
 
 	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	p.Flags, err = pb.readUint32()
 	if err != nil {
 		return err
 	}
@@ -341,6 +353,7 @@ func (p *Lstat) UnmarshalBinary(data []byte) error {
 // FStat SSH_FXP_FSTAT C->S
 type FStat struct {
 	Handle string
+	Flags  uint32
 }
 
 func (p *FStat) UnmarshalBinary(data []byte) error {
@@ -352,24 +365,57 @@ func (p *FStat) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
+	p.Flags, err = pb.readUint32()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // SetStat SSH_FXP_SETSTAT C->S
 type SetStat struct {
 	Path  string // UTF-8
-	Attrs []byte // todo
+	Attrs FileAttributes
 }
 
-func (p *SetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *SetStat) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	b := pb.getRemainingBytes()
+	if len(b) > 0 {
+		return p.Attrs.UnmarshalBinary(b)
+	}
+	return nil
+}
 
 // FSetStat SSH_FXP_FSETSTAT C->S
 type FSetStat struct {
 	Handle string
-	Attrs  []byte // todo
+	Attrs  FileAttributes
 }
 
-func (p *FSetStat) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *FSetStat) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.Handle, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	b := pb.getRemainingBytes()
+	if len(b) > 0 {
+		return p.Attrs.UnmarshalBinary(b)
+	}
+	return nil
+}
 
 // RealPath SSH_FXP_REALPATH C->S
 type RealPath struct {
@@ -378,14 +424,53 @@ type RealPath struct {
 	ControlByte  byte     // optional
 }
 
-func (p *RealPath) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *RealPath) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
 
-// Readlink SSH_FXP_READLINK C->S
-type Readlink struct {
+	p.OriginalPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	b := pb.getRemainingBytes()
+	if len(b) == 0 {
+		return nil
+	}
+	pb = newPacketBuffer(b)
+	if p.ControlByte, err = pb.readUint8(); err != nil {
+		return err
+	}
+
+	b = pb.getRemainingBytes()
+	for len(b) != 0 {
+		var composePath string
+		if composePath, err = pb.readUTF8(); err != nil {
+			return err
+		}
+		p.ComposePath = append(p.ComposePath, composePath)
+		b = pb.getRemainingBytes()
+	}
+
+	return nil
+}
+
+// ReadLink SSH_FXP_READLINK C->S
+type ReadLink struct {
 	Path string // UTF-8
 }
 
-func (p *Readlink) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *ReadLink) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.Path, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Link SSH_FXP_LINK C->S
 type Link struct {
@@ -394,7 +479,23 @@ type Link struct {
 	SymLink          bool
 }
 
-func (p *Link) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *Link) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.NewLinkPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	p.ExistingLinkPath, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+	// todo check symmlink
+
+	return nil
+}
 
 // Block SSH_FXP_BLOCK
 type Block struct {
@@ -469,7 +570,17 @@ type Extended struct {
 	ExtensionData   []byte
 }
 
-func (p *Extended) UnmarshalBinary(data []byte) error { return errors.New("not implemented") }
+func (p *Extended) UnmarshalBinary(data []byte) error {
+	var err error
+	pb := newPacketBuffer(data)
+
+	p.ExtendedRequest, err = pb.readUTF8()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // ExtendedReply SSH_FXP_EXTENDED_REPLY
 type ExtendedReply struct {
@@ -492,7 +603,9 @@ type FileAttributes struct {
 	Atime              int64
 	CreateTime         int64
 	CTime              int64
+	MTime              int64
 	Permissions        uint32
+	MTimeNSeconds      uint32
 	CTimeNSeconds      uint32
 	CreateTimeNSeconds uint32
 	AttribBits         uint32
@@ -502,6 +615,7 @@ type FileAttributes struct {
 	Flags              uint32
 	ExtendedCount      uint32
 	TextHint           byte
+	fType              byte
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface
@@ -510,6 +624,10 @@ func (fa *FileAttributes) UnmarshalBinary(data []byte) error {
 	var err error
 
 	if fa.Flags, err = pb.readUint32(); err != nil {
+		return err
+	}
+
+	if fa.fType, err = pb.readUint8(); err != nil {
 		return err
 	}
 
@@ -557,6 +675,17 @@ func (fa *FileAttributes) UnmarshalBinary(data []byte) error {
 		}
 		if fa.Flags&sshFilexferAttrSubsecondTimes != 0 {
 			if fa.CreateTimeNSeconds, err = pb.readUint32(); err != nil {
+				return err
+			}
+		}
+	}
+
+	if fa.Flags&sshFilexferAttrModifyTime != 0 {
+		if fa.MTime, err = pb.readInt64(); err != nil {
+			return err
+		}
+		if fa.Flags&sshFilexferAttrSubsecondTimes != 0 {
+			if fa.MTimeNSeconds, err = pb.readUint32(); err != nil {
 				return err
 			}
 		}
