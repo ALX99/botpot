@@ -55,94 +55,104 @@ func (s *Parser) parseInfo(packets []packet) error {
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("SFTP server version %d", p.Version)
+			s.l.Debug().Interface("Init", p).Send()
 		case sshFXPOpen:
 			p := Open{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Open: %s", p.Filename)
+			s.l.Debug().Interface("Open", p).Send()
 		case sshFXPClose:
 			p := Close{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Close: %d %s", packet.requestID, p.Handle)
+			s.l.Debug().Interface("Close", p).Send()
 		case sshFXPRead:
 			p := Read{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Read: %d %d", packet.requestID, p.Offset)
+			s.l.Debug().Interface("Read", p).Send()
 		case sshFXPWrite:
 			p := Write{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Write: %d %s %d", packet.requestID, p.Handle, p.Offset)
+			p.Data = "notset"
+			s.l.Debug().Interface("Write", p).Send()
 		case sshFXPMkdir:
 			p := Mkdir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Mkdir: %d %s", packet.requestID, p.Path)
+			s.l.Debug().Interface("Mkdir", p).Send()
 		case sshFXPOpenDir:
 			p := OpenDir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Opendir: %d %s", packet.requestID, p.Path)
+			s.l.Debug().Interface("OpenDir", p).Send()
 		case sshFXPReadDir:
 			p := ReadDir{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
-			s.l.Info().Msgf("Readdir: %d %s", packet.requestID, p.Handle)
+			s.l.Debug().Interface("ReadDir", p).Send()
 		case sshFXPFsetStat:
 			p := FSetStat{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("FsetStat", p).Send()
 		case sshFXPRealPath:
 			p := RealPath{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("RealPath", p).Send()
 		case sshFXPStat:
 			p := Stat{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("Stat", p).Send()
 		case sshFXPLStat:
 			p := LStat{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("LStat", p).Send()
 		case sshFXPFStat:
 			p := FStat{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("FStat", p).Send()
 		case sshFXPSetStat:
 			p := SetStat{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("SetStat", p).Send()
 		case sshFXPReadLink:
 			p := ReadLink{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("ReadLink", p).Send()
 		case sshFXPLink:
 			p := Link{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("Link", p).Send()
 		case sshFXPExtended:
 			p := Extended{}
 			if err := p.UnmarshalBinary(packet.data); err != nil {
 				return err
 			}
+			s.l.Debug().Interface("Extended", p).Send()
 		default:
 			s.l.Warn().Uint8("type", packet.pType).Msg("Did not understand SFTP packet")
 		}
