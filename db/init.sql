@@ -68,6 +68,19 @@ CREATE TABLE ExitStatusRequest (
     PRIMARY KEY (session_id, channel_id, id),
     CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
 );
+CREATE TABLE ExitSignalRequest (
+    id serial NOT NULL,
+    session_id int NOT NULL,
+    channel_id int NOT NULL,
+    ts timestamptz NOT NULL,
+    from_client boolean NOT NULL,
+    signal_name text NOT NULL,
+    core_dumped boolean NOT NULL,
+    error_msg text NOT NULL,
+    language_tag text NOT NULL,
+    PRIMARY KEY (session_id, channel_id, id),
+    CONSTRAINT fk_id FOREIGN KEY (session_id, channel_id) REFERENCES Channel (session_id, id) ON DELETE CASCADE
+);
 CREATE TABLE ShellRequest (
     id serial NOT NULL,
     session_id int NOT NULL,

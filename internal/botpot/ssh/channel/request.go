@@ -86,6 +86,24 @@ func (r *exitStatusReq) Insert(tx pgx.Tx) error {
 	return err
 }
 
+type exitSignalReq struct {
+	signalName string
+	coreDumped bool
+	errorMsg   string
+	langTag    string
+
+	c commonReq
+}
+
+func (r *exitSignalReq) Insert(tx pgx.Tx) error {
+	_, err := tx.Exec(context.TODO(), `
+	INSERT INTO ExitStatusRequest(session_id, channel_id, ts, from_client, signal_name, core_dumped, error_msg, language_tag)
+		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7
+			FROM Session
+`, r.c.chID, r.c.ts, r.c.fromClient, r.signalName, r.coreDumped, r.errorMsg, r.langTag)
+	return err
+}
+
 type shellReq struct {
 	c commonReq
 }
@@ -205,6 +223,30 @@ func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger
 			Msg("Got channel request")
 		return &exitStatusReq{
 			exitStatus: r.ExitStatus,
+			c:          c,
+		}, nil
+	case ExitSignalRequest:
+		r := struct {
+			SignalName string
+			CoreDumped bool
+			ErrorMsg   string
+			LangTag    string
+		}{}
+		if err := ssh.Unmarshal(req.Payload, &r); err != nil {
+			return nil, err
+		}
+		l.Info().
+			Str("type", req.Type).
+			Str("signalName", r.SignalName).
+			Bool("coreDumped", r.CoreDumped).
+			Str("errorMsg", r.ErrorMsg).
+			Str("langTag", r.LangTag).
+			Msg("Got channel request")
+		return &exitSignalReq{
+			signalName: r.SignalName,
+			coreDumped: r.CoreDumped,
+			errorMsg:   r.ErrorMsg,
+			langTag:    r.LangTag,
 			c:          c,
 		}, nil
 	case ShellRequest:
