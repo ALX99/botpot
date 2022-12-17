@@ -97,7 +97,7 @@ type exitSignalReq struct {
 
 func (r *exitSignalReq) Insert(tx pgx.Tx) error {
 	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ExitStatusRequest(session_id, channel_id, ts, from_client, signal_name, core_dumped, error_msg, language_tag)
+	INSERT INTO ExitSignalRequest(session_id, channel_id, ts, from_client, signal_name, core_dumped, error_msg, language_tag)
 		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7
 			FROM Session
 `, r.c.chID, r.c.ts, r.c.fromClient, r.signalName, r.coreDumped, r.errorMsg, r.langTag)
