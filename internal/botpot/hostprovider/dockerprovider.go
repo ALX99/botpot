@@ -223,12 +223,14 @@ func (d *DockerProvider) deleteContainer(ctx context.Context, ID string) error {
 // to connect to
 func (d *DockerProvider) GetHost(ctx context.Context) (string, string, error) {
 	var H *host.DHost
+	d.RLock()
 	for _, h := range d.containers {
 		if h.Running() && !h.Occupied() {
 			H = h
 			break
 		}
 	}
+	d.RUnlock()
 
 	// In case no available containers
 	if H == nil {
