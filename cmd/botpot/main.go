@@ -41,6 +41,7 @@ func main() {
 		},
 		container.HostConfig{
 			NetworkMode:     container.NetworkMode(cfg.DockerNetwork),
+			AutoRemove:      true,
 			Privileged:      false,
 			PublishAllPorts: false,
 			ReadonlyRootfs:  false,

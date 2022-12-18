@@ -203,15 +203,6 @@ func (d *DockerProvider) deleteContainer(ctx context.Context, ID string) error {
 		}
 	}
 
-	err := d.client.ContainerRemove(ctx, ID, types.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   false,
-		Force:         true,
-	})
-	if err != nil {
-		return err
-	}
-
 	d.Lock()
 	delete(d.containers, ID)
 	d.Unlock()
