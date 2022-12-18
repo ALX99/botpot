@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net"
 	"strconv"
+	"time"
 
 	"github.com/alx99/botpot/internal/botpot/db"
 	"github.com/alx99/botpot/internal/botpot/hostprovider"
@@ -84,6 +85,7 @@ func readHostKey(keyPath string) (ssh.Signer, error) {
 
 func (s *Server) loop() {
 	for {
+		t := time.Now()
 		// Accept connection
 		conn, err := s.l.Accept()
 		if err != nil {
@@ -93,20 +95,26 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
+		log.Debug().Str("duration", time.Since(t).String()).Msg("Connection accepted")
 
 		// Handshake connection
+		t = time.Now()
 		sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
 		if err != nil {
 			log.Err(err).Msg("Could not handshake SSH connection")
 			conn.Close()
 			continue
 		}
+		log.Debug().Str("duration", time.Since(t).String()).Msg("Connection handshaked")
 
+		t = time.Now()
 		host, ID, err := s.provider.GetHost(context.TODO())
 		if err != nil {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
+		log.Debug().Str("duration", time.Since(t).String()).Msg("Host obtained")
+
 		p := newSSHProxy(host, "root")
 
 		// Create new client

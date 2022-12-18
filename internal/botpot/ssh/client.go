@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/alx99/botpot/internal/botpot/ssh/channel"
 	"github.com/alx99/botpot/internal/botpot/ssh/session"
@@ -50,6 +51,7 @@ func newClient(conn ssh.Conn, proxy sshProxy, channelChan <-chan ssh.NewChannel)
 
 // handle handles the client and blocks until client has disconnected
 func (c *client) handle(reqChan <-chan *ssh.Request) {
+	t := time.Now()
 	err := c.proxy.Connect()
 	if err != nil {
 		c.l.Err(err).Msg("Could not connect to proxy")
@@ -57,7 +59,7 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 		return
 	}
 
-	c.l.Info().Msg("Connected to proxy")
+	c.l.Info().Str("duration", time.Since(t).String()).Msg("Connected to proxy")
 	c.wg.Add(2)
 	go c.handleChannels()
 	go c.handleGlobalRequests(c.proxy.client, reqChan, true) // client to proxy
