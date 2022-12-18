@@ -137,7 +137,7 @@ func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost
 	if err != nil {
 		return nil, err
 	}
-	log.Debug().Dur("timeSinceCreation", time.Since(t)).Msg("Container started")
+	log.Debug().Dur("timeSinceCreation", time.Since(t)).Str("id", res.ID).Msg("Container started")
 
 	d.Lock()
 	h := d.containers[res.ID]

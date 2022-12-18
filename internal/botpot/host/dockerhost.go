@@ -18,7 +18,6 @@ func NewDHost(ID string) *DHost {
 }
 
 func (h *DHost) SetRunning(val bool) {
-	log.Debug().Str("ID", h.id).Bool("running", val).Send()
 	h.Lock()
 	h.running = val
 	h.Unlock()
