@@ -22,7 +22,7 @@ type client struct {
 	l            zerolog.Logger
 	session      session.Session
 	chanCounter  uint32
-	disconnected bool
+	disconnected atomic.Bool
 	wg           sync.WaitGroup
 }
 
@@ -41,9 +41,10 @@ func newClient(conn ssh.Conn, proxy sshProxy, channelChan <-chan ssh.NewChannel)
 		l:            l,
 		session:      s,
 		chanCounter:  0,
-		disconnected: false,
+		disconnected: atomic.Bool{},
 		wg:           sync.WaitGroup{},
 	}
+	c.disconnected.Store(false)
 
 	l.Info().Msg("Connected")
 	return &c
@@ -67,8 +68,8 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	// Wait for proxy to disconnect
 	go func() {
 		c.proxy.Wait()
-		if c.disconnected {
-			return
+		if c.disconnected.Load() {
+			return // client already disconnected
 		}
 		c.l.Err(errors.New("proxy disconnected without client")).Msg("Something went wrong")
 
@@ -76,13 +77,12 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 		if err = c.conn.Close(); err != nil {
 			c.l.Err(err).Msg("Error while disconnecting client")
 		}
-		c.disconnected = true
+		c.disconnected.Store(true)
 	}()
 
 	// Wait for client to disconnect
-
 	c.conn.Wait()
-	c.disconnected = true
+	c.disconnected.Store(true)
 
 	c.session.Stop()
 
