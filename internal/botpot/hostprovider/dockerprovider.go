@@ -123,6 +123,7 @@ func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
 }
 
 func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost, error) {
+	t := time.Now()
 	res, err := d.client.ContainerCreate(ctx, &d.config, &d.hostConfig, &d.networkConfig, &d.plaform, "")
 	if err != nil {
 		return nil, err
@@ -136,6 +137,7 @@ func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost
 	if err != nil {
 		return nil, err
 	}
+	log.Debug().Dur("timeSinceCreation", time.Since(t)).Msg("Container started")
 
 	d.Lock()
 	h := d.containers[res.ID]

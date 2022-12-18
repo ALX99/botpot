@@ -14,7 +14,6 @@ type DHost struct {
 }
 
 func NewDHost(ID string) *DHost {
-	log.Debug().Str("ID", ID).Msg("Created")
 	return &DHost{id: ID}
 }
 
