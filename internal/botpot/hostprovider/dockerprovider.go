@@ -52,14 +52,14 @@ func NewDockerProvider(hostt string, config container.Config, hostConfig contain
 	}
 }
 
-func (d *DockerProvider) Start() error {
+func (d *DockerProvider) Start(ctx context.Context) error {
 	log.Info().Msg("Starting DockerProvider")
 	var err error
 	d.client, err = client.NewClientWithOpts(client.WithHost(d.host))
 	if err != nil {
 		return err
 	}
-	list, err := d.client.ImageList(context.TODO(), types.ImageListOptions{})
+	list, err := d.client.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (d *DockerProvider) Start() error {
 	}
 
 	if !found { // Pull image
-		readCloser, err := d.client.ImagePull(context.TODO(), d.config.Image, types.ImagePullOptions{})
+		readCloser, err := d.client.ImagePull(ctx, d.config.Image, types.ImagePullOptions{})
 		if err != nil {
 			return err
 		}
@@ -87,13 +87,13 @@ func (d *DockerProvider) Start() error {
 	}
 
 	d.running.Store(true)
-	go d.monitorHostBuf()
+	go d.monitorHostBuf(ctx)
 	return nil
 }
 
-func (d *DockerProvider) monitorHostBuf() {
+func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
 	t := time.NewTicker(500 * time.Millisecond)
-  defer t.Stop()
+	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
@@ -108,7 +108,7 @@ func (d *DockerProvider) monitorHostBuf() {
 			d.RUnlock()
 
 			for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
-				_, err := d.createAndRunContainer()
+				_, err := d.createAndRunContainer(ctx)
 				if err != nil {
 					log.Err(err).Msg("Error while creating&running container")
 				}
@@ -116,12 +116,14 @@ func (d *DockerProvider) monitorHostBuf() {
 
 		case <-d.shutdown:
 			return
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
-func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
-	res, err := d.client.ContainerCreate(context.TODO(), &d.config, &d.hostConfig, &d.networkConfig, &d.plaform, "")
+func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost, error) {
+	res, err := d.client.ContainerCreate(ctx, &d.config, &d.hostConfig, &d.networkConfig, &d.plaform, "")
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +132,7 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 	d.containers[res.ID] = host.NewDHost(res.ID)
 	d.Unlock()
 
-	err = d.client.ContainerStart(context.TODO(), res.ID, types.ContainerStartOptions{})
+	err = d.client.ContainerStart(ctx, res.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -143,13 +145,13 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 	return h, nil
 }
 
-func (d *DockerProvider) Stop() error {
+func (d *DockerProvider) Stop(ctx context.Context) error {
 	log.Info().Msg("Stopping DockerProvider")
 	d.running.Store(false)
 
 	var errs error
 	for ID := range d.containers {
-		err := d.deleteContainer(ID)
+		err := d.deleteContainer(ctx, ID)
 		if err != nil {
 			if errs != nil {
 				errs = fmt.Errorf("%w %s", err, errs)
@@ -162,7 +164,7 @@ func (d *DockerProvider) Stop() error {
 	return errs
 }
 
-func (d *DockerProvider) stopContainer(ID string) error {
+func (d *DockerProvider) stopContainer(ctx context.Context, ID string) error {
 	d.RLock()
 	h, ok := d.containers[ID]
 	d.RUnlock()
@@ -171,7 +173,7 @@ func (d *DockerProvider) stopContainer(ID string) error {
 	}
 
 	timeout := 10 * time.Second
-	err := d.client.ContainerStop(context.TODO(), ID, &timeout)
+	err := d.client.ContainerStop(ctx, ID, &timeout)
 	if err != nil {
 		return err
 	}
@@ -181,7 +183,7 @@ func (d *DockerProvider) stopContainer(ID string) error {
 }
 
 // deleteContainer will optionally stop and delete a container
-func (d *DockerProvider) deleteContainer(ID string) error {
+func (d *DockerProvider) deleteContainer(ctx context.Context, ID string) error {
 	d.RLock()
 	h, ok := d.containers[ID]
 	d.RUnlock()
@@ -190,13 +192,13 @@ func (d *DockerProvider) deleteContainer(ID string) error {
 	}
 
 	if h.Running() {
-		err := d.stopContainer(ID)
+		err := d.stopContainer(ctx, ID)
 		if err != nil {
 			return err
 		}
 	}
 
-	err := d.client.ContainerRemove(context.TODO(), ID, types.ContainerRemoveOptions{
+	err := d.client.ContainerRemove(ctx, ID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		RemoveLinks:   false,
 		Force:         true,
@@ -214,7 +216,7 @@ func (d *DockerProvider) deleteContainer(ID string) error {
 
 // GetHost returns an available host in the format IP:PORT
 // to connect to
-func (d *DockerProvider) GetHost() (string, string, error) {
+func (d *DockerProvider) GetHost(ctx context.Context) (string, string, error) {
 	var H *host.DHost
 	for _, h := range d.containers {
 		if h.Running() && !h.Occupied() {
@@ -226,13 +228,13 @@ func (d *DockerProvider) GetHost() (string, string, error) {
 	// In case no available containers
 	if H == nil {
 		var err error
-		H, err = d.createAndRunContainer()
+		H, err = d.createAndRunContainer(ctx)
 		if err != nil {
 			return "", "", err
 		}
 	}
 
-	res, err := d.client.ContainerInspect(context.TODO(), H.ID())
+	res, err := d.client.ContainerInspect(ctx, H.ID())
 	if err != nil {
 		return "", "", err
 	}
@@ -260,8 +262,8 @@ func (d *DockerProvider) GetHost() (string, string, error) {
 }
 
 // GetScriptOutput gets the script output and timing files
-func (d *DockerProvider) GetScriptOutput(ID string) (string, string, error) {
-	r, _, err := d.client.CopyFromContainer(context.TODO(), ID, "/tmp/l")
+func (d *DockerProvider) GetScriptOutput(ctx context.Context, ID string) (string, string, error) {
+	r, _, err := d.client.CopyFromContainer(ctx, ID, "/tmp/l")
 	if err != nil {
 		// Not really something that we should treat as an error for now
 		if strings.Contains(err.Error(), "No such container:path") {
@@ -289,8 +291,8 @@ func (d *DockerProvider) GetScriptOutput(ID string) (string, string, error) {
 }
 
 // StopHost stops a managed host
-func (d *DockerProvider) StopHost(ID string) error {
-	return d.deleteContainer(ID)
+func (d *DockerProvider) StopHost(ctx context.Context, ID string) error {
+	return d.deleteContainer(ctx, ID)
 }
 
 func readTar(r io.ReadCloser) (string, error) {

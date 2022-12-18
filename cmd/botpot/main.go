@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"strings"
@@ -52,7 +53,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Could not start database")
 	}
 
-	err = provider.Start()
+	err = provider.Start(context.TODO())
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start provider")
 	}
@@ -71,7 +72,7 @@ func main() {
 		log.Err(err).Msg("Could not stop SSH Server")
 	}
 
-	err = provider.Stop()
+	err = provider.Stop(context.TODO())
 	if err != nil {
 		log.Err(err).Msg("Could not stop provider")
 	}

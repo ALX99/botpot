@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"context"
 	"io/ioutil"
 	"net"
 	"strconv"
@@ -101,7 +102,7 @@ func (s *Server) loop() {
 			continue
 		}
 
-		host, ID, err := s.provider.GetHost()
+		host, ID, err := s.provider.GetHost(context.TODO())
 		if err != nil {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
@@ -114,14 +115,14 @@ func (s *Server) loop() {
 		go func() {
 			c.handle(reqChan) // Blocks until client disconnects
 
-			stdout, timing, err := s.provider.GetScriptOutput(ID)
+			stdout, timing, err := s.provider.GetScriptOutput(context.TODO(), ID)
 			if err != nil {
 				log.Err(err).Str("id", ID).Msg("Could not get script output")
 			} else {
 				c.session.AddScriptOutput(stdout, timing)
 			}
 
-			err = s.provider.StopHost(ID)
+			err = s.provider.StopHost(context.TODO(), ID)
 			if err != nil {
 				log.Err(err).Str("id", ID).Msg("Could not stop host")
 			}

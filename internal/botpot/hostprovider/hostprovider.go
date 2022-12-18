@@ -1,10 +1,12 @@
 package hostprovider
 
+import "context"
+
 // SSH provides SSH hosts
 type SSH interface {
-	Start() error
-	Stop() error
-	GetHost() (IP string, ID string, err error)
-	StopHost(ID string) error
-	GetScriptOutput(ID string) (string, string, error)
+	Start(context.Context) error
+	Stop(context.Context) error
+	GetHost(context.Context) (IP string, ID string, err error)
+	StopHost(ctx context.Context, ID string) error
+	GetScriptOutput(ctx context.Context, ID string) (string, string, error)
 }
