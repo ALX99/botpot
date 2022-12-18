@@ -85,7 +85,6 @@ func readHostKey(keyPath string) (ssh.Signer, error) {
 
 func (s *Server) loop() {
 	for {
-		t := time.Now()
 		// Accept connection
 		conn, err := s.l.Accept()
 		if err != nil {
@@ -95,10 +94,9 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
-		log.Debug().Str("duration", time.Since(t).String()).Msg("Connection accepted")
 
 		// Handshake connection
-		t = time.Now()
+		t := time.Now()
 		sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
 		if err != nil {
 			log.Err(err).Msg("Could not handshake SSH connection")
