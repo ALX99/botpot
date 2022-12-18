@@ -26,15 +26,16 @@ import (
 // run SSH servers that can serve attackers
 type DockerProvider struct {
 	sync.RWMutex
+	running       atomic.Bool
+	hostConfig    container.HostConfig
 	client        *client.Client
 	containers    map[string]*host.DHost
-	host          string
-	hostBuffer    int
-	running       atomic.Bool
-	config        container.Config
-	hostConfig    container.HostConfig
 	networkConfig network.NetworkingConfig
+	shutdown      <-chan any
 	plaform       specs.Platform
+	host          string
+	config        container.Config
+	hostBuffer    int
 }
 
 // NewDockerProvider creates a new docker provider
@@ -47,6 +48,7 @@ func NewDockerProvider(hostt string, config container.Config, hostConfig contain
 		plaform:       platform,
 		containers:    make(map[string]*host.DHost),
 		hostBuffer:    hostBuffer,
+		shutdown:      make(<-chan any),
 	}
 }
 
@@ -90,25 +92,31 @@ func (d *DockerProvider) Start() error {
 }
 
 func (d *DockerProvider) monitorHostBuf() {
-	for d.running.Load() {
-		occupiedCount := 0
-		d.RLock()
-		hostCount := len(d.containers)
-		for _, h := range d.containers {
-			if h.Occupied() {
-				occupiedCount++
+	t := time.NewTicker(500 * time.Millisecond)
+  defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			occupiedCount := 0
+			d.RLock()
+			hostCount := len(d.containers)
+			for _, h := range d.containers {
+				if h.Occupied() {
+					occupiedCount++
+				}
 			}
-		}
-		d.RUnlock()
+			d.RUnlock()
 
-		for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
-			_, err := d.createAndRunContainer()
-			if err != nil {
-				log.Err(err).Msg("Error while creating&running container")
+			for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
+				_, err := d.createAndRunContainer()
+				if err != nil {
+					log.Err(err).Msg("Error while creating&running container")
+				}
 			}
-		}
 
-		time.Sleep(500 * time.Millisecond)
+		case <-d.shutdown:
+			return
+		}
 	}
 }
 
@@ -138,6 +146,7 @@ func (d *DockerProvider) createAndRunContainer() (*host.DHost, error) {
 func (d *DockerProvider) Stop() error {
 	log.Info().Msg("Stopping DockerProvider")
 	d.running.Store(false)
+
 	var errs error
 	for ID := range d.containers {
 		err := d.deleteContainer(ID)
@@ -149,6 +158,7 @@ func (d *DockerProvider) Stop() error {
 			}
 		}
 	}
+
 	return errs
 }
 
