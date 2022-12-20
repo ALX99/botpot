@@ -147,9 +147,13 @@ func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost
 		Msg("Container started")
 
 	d.Lock()
-	h := d.containers[res.ID]
-	h.SetRunning(true)
+	h, ok := d.containers[res.ID]
 	d.Unlock()
+	if !ok {
+		return nil, errors.New("container removed from map")
+	}
+
+	h.SetRunning(true)
 
 	return h, nil
 }
