@@ -18,12 +18,12 @@ import (
 type Channel struct {
 	start        time.Time
 	end          time.Time
+	proxyClosed  atomic.Bool
+	clientClosed atomic.Bool
 	reqChan      ssh.NewChannel
-	p            *ssh.Client
 	recvStderr   *bytes.Buffer
+	p            *ssh.Client
 	recv         *bytes.Buffer
-	proxyClosed  atomic.Bool // true if the proxy channel has been closed
-	clientClosed atomic.Bool // true if the channel has been closed
 	channelType  string
 	l            zerolog.Logger
 	reqs         []request
@@ -91,14 +91,12 @@ func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
 			// SSH channel until all data has been sent
 			if !fromClient {
 				c.proxyClosed.Store(true)
-			} else {
-				if !clientClosed.Swap(true) && !c.clientClosed.Load() {
-					// Here the client has left us without the proxy request channel being closed
-					// This case can for example be hit when dealing with SFTP
-					// Time to bail
-					if err = proxyChan.Close(); err != nil {
-						c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
-					}
+			} else if !clientClosed.Swap(true) && !c.clientClosed.Load() {
+				// Here the client has left us without the proxy request channel being closed
+				// This case can for example be hit when dealing with SFTP
+				// Time to bail
+				if err = proxyChan.Close(); err != nil {
+					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 				}
 			}
 		}
@@ -129,11 +127,9 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 				}
 			}
-		} else {
-			if req.WantReply {
-				if err = req.Reply(res, nil); err != nil {
-					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
-				}
+		} else if req.WantReply {
+			if err = req.Reply(res, nil); err != nil {
+				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package ssh
 import (
 	"errors"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -67,7 +68,9 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 
 	// Wait for proxy to disconnect
 	go func() {
+		// nolint:errcheck // error is not interesting
 		c.proxy.Wait()
+
 		if c.disconnected.Load() {
 			return // client already disconnected
 		}
@@ -81,7 +84,11 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 	}()
 
 	// Wait for client to disconnect
-	c.conn.Wait()
+	if err = c.conn.Wait(); err != nil {
+		if !strings.Contains(err.Error(), "disconnected by user") {
+			c.l.Err(err).Msg("Error occurred while waiting for client")
+		}
+	}
 	c.disconnected.Store(true)
 
 	c.session.Stop()

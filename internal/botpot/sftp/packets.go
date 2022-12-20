@@ -29,11 +29,11 @@ const (
 	sshFXPBlock    = 22
 	sshFXPUnblock  = 23
 
-	sshFXPStatus = 101
-	sshFXPHandle = 102
-	sshFXPData   = 103
-	sshFXPName   = 104
-	sshFXPAttrs  = 105
+	sshFXPStatus = 101 // nolint:unused // RFC
+	sshFXPHandle = 102 // nolint:unused // RFC
+	sshFXPData   = 103 // nolint:unused // RFC
+	sshFXPName   = 104 // nolint:unused // RFC
+	sshFXPAttrs  = 105 // nolint:unused // RFC
 
 	sshFXPExtended      = 200
 	sshFXPExtendedReply = 201
@@ -492,7 +492,7 @@ func (p *Link) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	// todo check symmlink
+	// todo check symlink
 
 	return nil
 }
@@ -501,7 +501,7 @@ func (p *Link) UnmarshalBinary(data []byte) error {
 type Block struct {
 	// Handle is returned by SSH_FXP_OPEN
 	Handle string
-	// Offset is the beggining of the byte-range to lock
+	// Offset is the beginning of the byte-range to lock
 	Offset uint64
 	// Number  of bytes to lock
 	Length uint64
@@ -515,7 +515,7 @@ func (p *Block) UnmarshalBinary(data []byte) error { return errors.New("not impl
 type Unblock struct {
 	// Handle is returned by SSH_FXP_OPEN
 	Handle string
-	// Offset is the beggining of the byte-range to unlock
+	// Offset is the beginning of the byte-range to unlock
 	Offset uint64
 	// Number  of bytes to unlock
 	Length uint64

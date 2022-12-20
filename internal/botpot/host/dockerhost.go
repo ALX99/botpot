@@ -13,8 +13,8 @@ type DHost struct {
 	sync.RWMutex
 }
 
-func NewDHost(ID string) *DHost {
-	return &DHost{id: ID}
+func NewDHost(id string) *DHost {
+	return &DHost{id: id}
 }
 
 func (h *DHost) SetRunning(val bool) {

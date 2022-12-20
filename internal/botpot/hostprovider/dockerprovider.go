@@ -83,7 +83,11 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 			return err
 		}
 		defer readCloser.Close()
-		io.Copy(os.Stdout, readCloser) // this needs to be handled for whatever reason
+
+		// this needs to be handled for whatever reason
+		if _, err := io.Copy(os.Stdout, readCloser); err != nil {
+			log.Err(err).Msg("Error while copying output to stdout")
+		}
 	}
 
 	d.running.Store(true)
@@ -169,16 +173,16 @@ func (d *DockerProvider) Stop(ctx context.Context) error {
 	return errs
 }
 
-func (d *DockerProvider) stopContainer(ctx context.Context, ID string) error {
+func (d *DockerProvider) stopContainer(ctx context.Context, id string) error {
 	d.RLock()
-	h, ok := d.containers[ID]
+	h, ok := d.containers[id]
 	d.RUnlock()
 	if !ok {
-		return fmt.Errorf("container with ID %s not found", ID)
+		return fmt.Errorf("container with ID %s not found", id)
 	}
 
 	timeout := 10 * time.Second
-	err := d.client.ContainerStop(ctx, ID, &timeout)
+	err := d.client.ContainerStop(ctx, id, &timeout)
 	if err != nil {
 		return err
 	}
@@ -188,23 +192,23 @@ func (d *DockerProvider) stopContainer(ctx context.Context, ID string) error {
 }
 
 // deleteContainer will optionally stop and delete a container
-func (d *DockerProvider) deleteContainer(ctx context.Context, ID string) error {
+func (d *DockerProvider) deleteContainer(ctx context.Context, id string) error {
 	d.RLock()
-	h, ok := d.containers[ID]
+	h, ok := d.containers[id]
 	d.RUnlock()
 	if !ok {
-		return fmt.Errorf("container with ID %s not found", ID)
+		return fmt.Errorf("container with ID %s not found", id)
 	}
 
 	if h.Running() {
-		err := d.stopContainer(ctx, ID)
+		err := d.stopContainer(ctx, id)
 		if err != nil {
 			return err
 		}
 	}
 
 	d.Lock()
-	delete(d.containers, ID)
+	delete(d.containers, id)
 	d.Unlock()
 
 	return nil
@@ -260,8 +264,8 @@ func (d *DockerProvider) GetHost(ctx context.Context) (string, string, error) {
 }
 
 // GetScriptOutput gets the script output and timing files
-func (d *DockerProvider) GetScriptOutput(ctx context.Context, ID string) (string, string, error) {
-	r, _, err := d.client.CopyFromContainer(ctx, ID, "/tmp/l")
+func (d *DockerProvider) GetScriptOutput(ctx context.Context, id string) (string, string, error) {
+	r, _, err := d.client.CopyFromContainer(ctx, id, "/tmp/l")
 	if err != nil {
 		// Not really something that we should treat as an error for now
 		if strings.Contains(err.Error(), "No such container:path") {
@@ -275,7 +279,7 @@ func (d *DockerProvider) GetScriptOutput(ctx context.Context, ID string) (string
 		return "", "", err
 	}
 
-	r, _, err = d.client.CopyFromContainer(context.TODO(), ID, "/tmp/t")
+	r, _, err = d.client.CopyFromContainer(context.TODO(), id, "/tmp/t")
 	if err != nil {
 		return "", "", err
 	}
@@ -289,8 +293,8 @@ func (d *DockerProvider) GetScriptOutput(ctx context.Context, ID string) (string
 }
 
 // StopHost stops a managed host
-func (d *DockerProvider) StopHost(ctx context.Context, ID string) error {
-	return d.deleteContainer(ctx, ID)
+func (d *DockerProvider) StopHost(ctx context.Context, id string) error {
+	return d.deleteContainer(ctx, id)
 }
 
 func readTar(r io.ReadCloser) (string, error) {
@@ -303,7 +307,7 @@ func readTar(r io.ReadCloser) (string, error) {
 	}
 
 	buf := new(bytes.Buffer)
-	buf.ReadFrom(tr)
+	_, err = buf.ReadFrom(tr)
 
-	return buf.String(), nil
+	return buf.String(), err
 }

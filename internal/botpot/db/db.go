@@ -14,7 +14,6 @@ import (
 type DB struct {
 	pool *pgxpool.Pool
 	url  string
-	cfg  pgx.ConnConfig
 }
 
 // NewDB creates a new DB

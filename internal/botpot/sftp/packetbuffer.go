@@ -3,11 +3,6 @@ package sftp
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-)
-
-var (
-	errShortPacket = errors.New("short packet")
 )
 
 type packetBuffer struct {

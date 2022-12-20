@@ -30,7 +30,7 @@ func (s *Parser) Parse() error {
 		return err
 	}
 
-	s.l.Debug().Int("count", len(packets)).Msg("Succesfully parsed all SFTP packets")
+	s.l.Debug().Int("count", len(packets)).Msg("Successfully parsed all SFTP packets")
 	return nil
 }
 
@@ -177,7 +177,7 @@ func readPacket(r io.Reader) (packet, error) {
 		return packet{}, err
 	}
 
-	var requestID uint32 = 0
+	var requestID uint32
 	if pType != sshFXPInit && pType != sshFXPVersion {
 		readBytes += 4
 		err = binary.Read(r, binary.BigEndian, &requestID)

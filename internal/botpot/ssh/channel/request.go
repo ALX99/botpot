@@ -166,6 +166,7 @@ func (r *subSystemRequest) Insert(tx pgx.Tx) error {
 	return err
 }
 
+// nolint:ireturn // needs to return interfae since is returns a bunch of different types
 func newRequest(req *ssh.Request, fromClient bool, chID uint32, l zerolog.Logger) (request, error) {
 	c := commonReq{ts: time.Now(), chID: chID, fromClient: fromClient}
 	switch req.Type {

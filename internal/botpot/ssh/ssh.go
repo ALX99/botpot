@@ -2,8 +2,8 @@ package ssh
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -74,8 +74,9 @@ func (s *Server) Stop() error {
 	return s.l.Close()
 }
 
+// nolint:ireturn //ssh.ParsePrivateKey returns interface
 func readHostKey(keyPath string) (ssh.Signer, error) {
-	fileBytes, err := ioutil.ReadFile(keyPath)
+	fileBytes, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
