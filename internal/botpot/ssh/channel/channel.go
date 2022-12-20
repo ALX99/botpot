@@ -59,8 +59,7 @@ func (c *Channel) Handle() {
 	if err != nil {
 		c.end = time.Now() // ensure endtime is not null value in case of error
 		c.l.Err(err).Msg("Could not open channel")
-		err = c.reqChan.Reject(ssh.ConnectionFailed, "")
-		if err != nil {
+		if err = c.reqChan.Reject(ssh.ConnectionFailed, ""); err != nil {
 			c.l.Err(err).Msg("Could not reject channel request")
 		}
 		return
@@ -126,15 +125,13 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 		if err != nil {
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to proxy request")
 			if req.WantReply {
-				err = req.Reply(false, nil)
-				if err != nil {
+				if err = req.Reply(false, nil); err != nil {
 					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 				}
 			}
 		} else {
 			if req.WantReply {
-				err = req.Reply(res, nil)
-				if err != nil {
+				if err = req.Reply(res, nil); err != nil {
 					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 				}
 			}
@@ -180,8 +177,7 @@ func (c *Channel) Insert(tx pgx.Tx) error {
 
 	sftpFound := false
 	for _, req := range c.reqs {
-		err = req.Insert(tx)
-		if err != nil {
+		if err = req.Insert(tx); err != nil {
 			return err
 		}
 
@@ -198,8 +194,7 @@ func (c *Channel) Insert(tx pgx.Tx) error {
 	if sftpFound {
 		// https://datatracker.ietf.org/doc/html/draft-ietf-secsh-filexfer-13#section-3.1
 		parser := sftp.NewParser(c.recv.Bytes(), c.l)
-		err = parser.Parse()
-		if err != nil {
+		if err = parser.Parse(); err != nil {
 			return err
 		}
 	}

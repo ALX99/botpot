@@ -12,17 +12,17 @@ import (
 
 // Session represents the database table
 type Session struct {
-	start   time.Time
-	end     time.Time
-	srcIP   string
-	dstIP   string
-	version string
-	stdout  string
-	timing  string
-	l       zerolog.Logger
-	channels     []*channel.Channel
-	srcPort int
-	dstPort int
+	start    time.Time
+	end      time.Time
+	srcIP    string
+	dstIP    string
+	version  string
+	stdout   string
+	timing   string
+	l        zerolog.Logger
+	channels []*channel.Channel
+	srcPort  int
+	dstPort  int
 }
 type ipInfo struct {
 	ip   string
@@ -32,10 +32,10 @@ type ipInfo struct {
 // NewSession creates a new session
 func NewSession(srcIP, dstIP net.Addr, version string, l zerolog.Logger) Session {
 	s := Session{
-		start:   time.Now(),
-		version: version,
-		l:       l,
-		channels:     []*channel.Channel{},
+		start:    time.Now(),
+		version:  version,
+		l:        l,
+		channels: []*channel.Channel{},
 	}
 
 	i := getIPInfo(srcIP)
@@ -79,8 +79,7 @@ func (s *Session) Insert(tx pgx.Tx) error {
 	}
 
 	for _, ch := range s.channels {
-		err = ch.Insert(tx)
-		if err != nil {
+		if err := ch.Insert(tx); err != nil {
 			return err
 		}
 	}
