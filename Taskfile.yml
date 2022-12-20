@@ -9,15 +9,12 @@ tasks:
     - rm -rf ./build
     - docker-compose down
 
-  build:
-    sources:
-      - ./internal/**/*.go
-      - ./cmd/botpot/main.go
-      - ./go.mod
-    generates:
-      - ./build/botpot
+  lint:
     cmds:
-      - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
+      - task: docker-run
+        vars:
+          IMAGE: golangci/golangci-lint:latest
+          CMD: golangci-lint run ./...
 
   test:
     deps:
@@ -29,6 +26,16 @@ tasks:
       - robot -X --exitonerror ./tests/e2e.robot
     vars:
       TEST_IMAGE: { sh: docker run -d -p 2001:22 alx99/priv:honeypot }
+
+  build:
+    sources:
+      - ./internal/**/*.go
+      - ./cmd/botpot/main.go
+      - ./go.mod
+    generates:
+      - ./build/botpot
+    cmds:
+      - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
 
   start:
     deps: [image, keys]
@@ -53,6 +60,15 @@ tasks:
       - task: docker-build
         vars:
           DOCKER_IMAGE: alx99/priv:botpot
+
+  docker-run:
+    label: docker run {{.IMAGE}}
+    internal: true
+    cmds:
+      - set -x; docker run -it {{.RM}} {{.PWD_MOUNT}} {{.IMAGE}} {{.CMD}}
+    vars:
+      PWD_MOUNT: '{{ternary "-v $PWD:$PWD -w $PWD" "" (eq (default "true" .PWD_MOUNT) "true")}}'
+      RM: '{{ternary "--rm" "" (eq (default "true" .RM) "true")}}'
 
   docker-build:
     label: image {{.DOCKER_IMAGE}}
