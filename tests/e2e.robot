@@ -5,7 +5,7 @@ Library     OperatingSystem
 
 
 *** Variables ***
-${HONEYPOT} =       localhost:2000
+${HONEYPOT} =       localhost:22
 ${SSH_SERVER} =     localhost:2001
 
 

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/alx99/botpot/internal/botpot/sftp"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/ssh"
 )
