@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -90,7 +92,15 @@ func main() {
 }
 
 func setup() config.Config {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	log.Logger = log.Output(zerolog.ConsoleWriter{
+		Out: os.Stdout,
+		FormatCaller: func(i interface{}) string {
+			return filepath.Base(fmt.Sprintf("%s", i))
+		},
+	}).
+		With().
+		Caller().
+		Logger()
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	cfg, err := config.GetConfig()
