@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: HoneypotDB
+    type: postgres
+    url: db:5432
+    database: postgres
+    user: postgres
+    isDefault: true
+    secureJsonData:
+      password: example
+    jsonData:
+      sslmode: disable
+      postgresVersion: 10
+      timescaledb: false

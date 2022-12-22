@@ -19,14 +19,38 @@ services:
       - ./build/keys:/keys:ro
     ports:
       - "22:2000"
+    networks: [internal, net]
     depends_on:
       - db
-    networks: [internal, net]
 
-#   grafana:
-#     image: grafana/grafana-oss
-#     restart: always
-#     network_mode: host
+  grafana:
+    image: grafana/grafana-oss
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    networks: [net]
+    environment:
+      PG_USER: postgres
+      PG_PASSWORD: example
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/admin_password
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana-data:/var/lib/grafana
+    secrets:
+      - admin_password
+    depends_on:
+      - db
+    profiles:
+      - grafana
+
+volumes:
+  grafana-data:
+
+secrets:
+  admin_password:
+    file: ./pw.txt
+
 networks:
   internal:
     driver: bridge
