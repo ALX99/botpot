@@ -3,7 +3,7 @@ version: '3.5'
 services:
   db:
     image: alx99/priv:botpotdb
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: example
     ports:
@@ -12,7 +12,7 @@ services:
 
   botpot:
     image: alx99/priv:botpot
-    restart: always
+    restart: unless-stopped
     env_file: botpot.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
