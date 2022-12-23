@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/alx99/botpot/internal/botpot/host"
@@ -26,12 +25,11 @@ import (
 // run SSH servers that can serve attackers
 type DockerProvider struct {
 	sync.RWMutex
-	running       atomic.Bool
 	hostConfig    container.HostConfig
 	client        *client.Client
 	containers    map[string]*host.DHost
 	networkConfig network.NetworkingConfig
-	shutdown      <-chan any
+	shutdown      chan any
 	plaform       specs.Platform
 	host          string
 	config        container.Config
@@ -48,7 +46,7 @@ func NewDockerProvider(hostt string, config container.Config, hostConfig contain
 		plaform:       platform,
 		containers:    make(map[string]*host.DHost),
 		hostBuffer:    hostBuffer,
-		shutdown:      make(<-chan any),
+		shutdown:      make(chan any),
 	}
 }
 
@@ -90,7 +88,6 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 		}
 	}
 
-	d.running.Store(true)
 	go d.monitorHostBuf(ctx)
 	return nil
 }
@@ -100,67 +97,69 @@ func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
 	defer t.Stop()
 	for {
 		select {
-		case <-t.C:
-			occupiedCount := 0
-			d.RLock()
-			hostCount := len(d.containers)
-			for _, h := range d.containers {
-				if h.Occupied() {
-					occupiedCount++
-				}
-			}
-			d.RUnlock()
-
-			for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
-				_, err := d.createAndRunContainer(ctx)
-				if err != nil {
-					log.Err(err).Msg("Error while creating&running container")
-				}
-			}
-
 		case <-d.shutdown:
 			return
 		case <-ctx.Done():
 			return
+
+		default:
+			select {
+			case <-t.C:
+				occupiedCount := 0
+				d.RLock()
+				hostCount := len(d.containers)
+				for _, h := range d.containers {
+					if h.Occupied() {
+						occupiedCount++
+					}
+				}
+				d.RUnlock()
+
+				for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
+					_, err := d.createAndRunContainer(ctx)
+					if err != nil {
+						log.Err(err).Msg("Error while creating&running container")
+					}
+				}
+
+			case <-d.shutdown:
+				return
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
 }
 
 func (d *DockerProvider) createAndRunContainer(ctx context.Context) (*host.DHost, error) {
+	d.Lock()
+	defer d.Unlock()
 	t := time.Now()
 	res, err := d.client.ContainerCreate(ctx, &d.config, &d.hostConfig, &d.networkConfig, &d.plaform, "")
 	if err != nil {
 		return nil, err
 	}
 
-	d.Lock()
-	d.containers[res.ID] = host.NewDHost(res.ID)
-	d.Unlock()
+	h := host.NewDHost(res.ID)
+	d.containers[res.ID] = h
 
 	err = d.client.ContainerStart(ctx, res.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return nil, err
 	}
+	h.SetRunning(true)
+
 	log.Debug().
 		Str("timeSinceCreation", time.Since(t).String()).
 		Str("id", res.ID).
 		Msg("Container started")
-
-	d.Lock()
-	h, ok := d.containers[res.ID]
-	d.Unlock()
-	if !ok {
-		return nil, errors.New("container removed from map")
-	}
-
-	h.SetRunning(true)
 
 	return h, nil
 }
 
 func (d *DockerProvider) Stop(ctx context.Context) error {
 	log.Info().Msg("Stopping DockerProvider")
-	d.running.Store(false)
+	close(d.shutdown)
 
 	var errs error
 	for ID := range d.containers {
@@ -206,6 +205,11 @@ func (d *DockerProvider) deleteContainer(ctx context.Context, id string) error {
 
 	if h.Running() {
 		err := d.stopContainer(ctx, id)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := d.client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
 		if err != nil {
 			return err
 		}
