@@ -91,10 +91,11 @@ func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
 			// SSH channel until all data has been sent
 			if !fromClient {
 				c.proxyClosed.Store(true)
-			} else if !clientClosed.Swap(true) && !c.clientClosed.Load() {
+			} else if !clientClosed.Swap(true) && !c.proxyClosed.Load() {
 				// Here the client has left us without the proxy request channel being closed
 				// This case can for example be hit when dealing with SFTP
 				// Time to bail
+				c.l.Err(err).Msg("Client left without proxy")
 				if err = proxyChan.Close(); err != nil {
 					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 				}
