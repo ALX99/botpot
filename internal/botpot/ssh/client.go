@@ -119,8 +119,7 @@ func (c *client) handleGlobalRequests(client *ssh.Client, reqChan <-chan *ssh.Re
 			continue
 		}
 
-		// todo
-		// c.logRequest(req, fromClient)
+		c.l.Debug().Interface("req", req).Send()
 
 		ok, res, err := client.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {

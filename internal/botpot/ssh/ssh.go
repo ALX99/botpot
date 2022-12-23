@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/alx99/botpot/internal/botpot/db"
@@ -22,6 +23,7 @@ type Server struct {
 	keypaths  []string
 	port      int
 	lIsClosed bool
+	wg        sync.WaitGroup
 }
 
 // New creates a new SSH server
@@ -34,6 +36,7 @@ func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB
 		port:      port,
 		keypaths:  keyPaths,
 		lIsClosed: false,
+		wg:        sync.WaitGroup{},
 	}
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
@@ -71,7 +74,9 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	log.Info().Msg("Stopping SSH Server")
 	s.lIsClosed = true
-	return s.l.Close()
+	err := s.l.Close()
+	s.wg.Wait()
+	return err
 }
 
 // nolint:ireturn //ssh.ParsePrivateKey returns interface
@@ -112,6 +117,8 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not get a hold of an SSH host")
 			continue
 		}
+		s.wg.Add(1)
+
 		log.Debug().Str("duration", time.Since(t).String()).Msg("Host obtained")
 
 		p := newSSHProxy(host, "root")
@@ -120,6 +127,7 @@ func (s *Server) loop() {
 		c := newClient(sshConn, p, channelChan)
 		// Handle client
 		go func() {
+			defer s.wg.Done()
 			c.handle(reqChan) // Blocks until client disconnects
 
 			stdout, timing, err := s.provider.GetScriptOutput(context.TODO(), ID)
