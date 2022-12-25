@@ -29,7 +29,6 @@ type client struct {
 
 func newClient(conn ssh.Conn, proxy sshProxy, channelChan <-chan ssh.NewChannel) *client {
 	l := log.With().
-		Str("version", string(conn.ClientVersion())).
 		Str("rAddr", conn.RemoteAddr().String()).
 		Logger()
 
@@ -60,8 +59,8 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 		c.conn.Close()
 		return
 	}
-
 	c.l.Info().Str("duration", time.Since(t).String()).Msg("Connected to proxy")
+
 	c.wg.Add(2)
 	go c.handleChannels()
 	go c.handleGlobalRequests(c.proxy.client, reqChan, true) // client to proxy
@@ -125,20 +124,20 @@ func (c *client) handleGlobalRequests(client *ssh.Client, reqChan <-chan *ssh.Re
 		ok, res, err := client.SendRequest(req.Type, req.WantReply, req.Payload)
 		if err != nil {
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to proxy request")
-			if req.WantReply {
-				err = req.Reply(false, res)
-				if err != nil {
-					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
-				}
+			if !req.WantReply {
+				continue
+			}
+			if err = req.Reply(false, res); err != nil {
+				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 			}
 			continue
 		}
 
-		if req.WantReply {
-			err = req.Reply(ok, res)
-			if err != nil {
-				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
-			}
+		if !req.WantReply {
+			continue
+		}
+		if err = req.Reply(ok, res); err != nil {
+			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to reply to request")
 		}
 	}
 	c.wg.Done()

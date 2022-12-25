@@ -82,26 +82,27 @@ func (c *Channel) proxyChannelData(clientChan, proxyChan ssh.Channel) {
 	clientClosed := atomic.Bool{}
 	proxyFunc := func(read io.Reader, write io.Writer, fromClient bool) {
 		n, err := io.Copy(write, read)
+		defer func() { c.l.Debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send() }()
 		if err != nil {
 			c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to copy")
-		} else {
-			// Keep track of when the proxy has closed
-			// the channel connection
-			// This is needed since we want to wait with closing the client
-			// SSH channel until all data has been sent
-			if !fromClient {
-				c.proxyClosed.Store(true)
-			} else if !clientClosed.Swap(true) && !c.proxyClosed.Load() {
-				// Here the client has left us without the proxy request channel being closed
-				// This case can for example be hit when dealing with SFTP
-				// Time to bail
-				c.l.Err(err).Msg("Client left without proxy")
-				if err = proxyChan.Close(); err != nil {
-					c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
-				}
+			return
+		}
+
+		// Keep track of when the proxy has closed
+		// the channel connection
+		// This is needed since we want to wait with closing the client
+		// SSH channel until all data has been sent
+		if !fromClient {
+			c.proxyClosed.Store(true)
+		} else if !clientClosed.Swap(true) && !c.proxyClosed.Load() {
+			// Here the client has left us without the proxy request channel being closed
+			// This case can for example be hit when dealing with SFTP
+			// Time to bail
+			c.l.Err(err).Msg("Client left without proxy")
+			if err = proxyChan.Close(); err != nil {
+				c.l.Err(err).Bool("fromClient", fromClient).Msg("Failed to close channel")
 			}
 		}
-		c.l.Debug().Bool("fromClient", fromClient).Int64("bytesRead", n).Send()
 	}
 
 	go proxyFunc(io.TeeReader(clientChan, c.recv), proxyChan, true)
