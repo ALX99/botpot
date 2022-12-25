@@ -85,7 +85,8 @@ func (c *client) handle(reqChan <-chan *ssh.Request) {
 
 	// Wait for client to disconnect
 	if err = c.conn.Wait(); err != nil {
-		if !strings.Contains(err.Error(), "disconnected by user") {
+		if !strings.Contains(err.Error(), "disconnected by user") &&
+			!strings.Contains(err.Error(), "reason 11:") {
 			c.l.Err(err).Msg("Error occurred while waiting for client")
 		}
 	}
