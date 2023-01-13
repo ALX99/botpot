@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/alx99/botpot/internal/botpot/db"
@@ -22,21 +23,20 @@ type Server struct {
 	db        *db.DB
 	keypaths  []string
 	port      int
-	lIsClosed bool
+	lIsClosed atomic.Bool
 	wg        sync.WaitGroup
 }
 
 // New creates a new SSH server
 func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB) *Server {
 	s := &Server{
-		l:         nil,
-		provider:  provider,
-		cfg:       &ssh.ServerConfig{},
-		db:        database,
-		port:      port,
-		keypaths:  keyPaths,
-		lIsClosed: false,
-		wg:        sync.WaitGroup{},
+		l:        nil,
+		provider: provider,
+		cfg:      &ssh.ServerConfig{},
+		db:       database,
+		port:     port,
+		keypaths: keyPaths,
+		wg:       sync.WaitGroup{},
 	}
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
@@ -73,7 +73,7 @@ func (s *Server) Start() error {
 // Stop stops the SSH server
 func (s *Server) Stop() error {
 	log.Info().Msg("Stopping SSH Server")
-	s.lIsClosed = true
+	s.lIsClosed.Store(true)
 	err := s.l.Close()
 	s.wg.Wait()
 	return err
@@ -90,13 +90,10 @@ func readHostKey(keyPath string) (ssh.Signer, error) {
 }
 
 func (s *Server) loop() {
-	for {
+	for !s.lIsClosed.Load() {
 		// Accept connection
 		conn, err := s.l.Accept()
 		if err != nil {
-			if s.lIsClosed {
-				break // Here we've closed the listener
-			}
 			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
