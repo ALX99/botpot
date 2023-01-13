@@ -97,36 +97,28 @@ func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
 	defer t.Stop()
 	for {
 		select {
+		case <-t.C:
+			occupiedCount := 0
+			d.RLock()
+			hostCount := len(d.containers)
+			for _, h := range d.containers {
+				if h.Occupied() {
+					occupiedCount++
+				}
+			}
+			d.RUnlock()
+
+			for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
+				_, err := d.createAndRunContainer(ctx)
+				if err != nil {
+					log.Err(err).Msg("Error while creating&running container")
+				}
+			}
+
 		case <-d.shutdown:
 			return
 		case <-ctx.Done():
 			return
-
-		default:
-			select {
-			case <-t.C:
-				occupiedCount := 0
-				d.RLock()
-				hostCount := len(d.containers)
-				for _, h := range d.containers {
-					if h.Occupied() {
-						occupiedCount++
-					}
-				}
-				d.RUnlock()
-
-				for i := 0; i < d.hostBuffer-(hostCount-occupiedCount); i++ {
-					_, err := d.createAndRunContainer(ctx)
-					if err != nil {
-						log.Err(err).Msg("Error while creating&running container")
-					}
-				}
-
-			case <-d.shutdown:
-				return
-			case <-ctx.Done():
-				return
-			}
 		}
 	}
 }
