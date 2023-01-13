@@ -88,7 +88,7 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 		}
 	}
 
-	go d.monitorHostBuf(ctx)
+	go d.monitorHostBuf(context.TODO())
 	return nil
 }
 

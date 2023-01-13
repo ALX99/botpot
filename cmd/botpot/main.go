@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/alx99/botpot/internal/botpot/config"
 	"github.com/alx99/botpot/internal/botpot/db"
@@ -61,10 +62,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Could not start database")
 	}
 
-	err = provider.Start(context.TODO())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err = provider.Start(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not start provider")
 	}
+	cancel()
 
 	err = sshServer.Start()
 	if err != nil {
@@ -80,10 +83,12 @@ func main() {
 		log.Err(err).Msg("Could not stop SSH Server")
 	}
 
-	err = provider.Stop(context.TODO())
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	err = provider.Stop(ctx)
 	if err != nil {
 		log.Err(err).Msg("Could not stop provider")
 	}
+	cancel()
 
 	err = db.Stop()
 	if err != nil {
