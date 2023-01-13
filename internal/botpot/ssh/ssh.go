@@ -97,54 +97,53 @@ func (s *Server) loop() {
 			log.Err(err).Msg("Could not accept connection")
 			continue
 		}
-
-		// Handshake connection
-		t := time.Now()
-		sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
-		if err != nil {
-			log.Err(err).Msg("Could not handshake SSH connection")
-			conn.Close()
-			continue
-		}
-		log.Debug().Str("duration", time.Since(t).String()).Msg("Connection handshaked")
-
-		t = time.Now()
-		host, ID, err := s.provider.GetHost(context.TODO())
-		if err != nil {
-			log.Err(err).Msg("Could not get a hold of an SSH host")
-			continue
-		}
-		s.wg.Add(1)
-
-		log.Debug().Str("duration", time.Since(t).String()).Msg("Host obtained")
-
-		p := newSSHProxy(host, "root")
-
-		// Create new client
-		c := newClient(sshConn, p, channelChan)
-		// Handle client
-		go func() {
-			defer s.wg.Done()
-			c.handle(reqChan) // Blocks until client disconnects
-
-			stdout, timing, err := s.provider.GetScriptOutput(context.TODO(), ID)
-			if err != nil {
-				log.Err(err).Str("id", ID).Msg("Could not get script output")
-			} else {
-				c.session.AddScriptOutput(stdout, timing)
-			}
-
-			err = s.provider.StopHost(context.TODO(), ID)
-			if err != nil {
-				log.Err(err).Str("id", ID).Msg("Could not stop host")
-			}
-
-			err = s.db.BeginTx(c.session.Insert)
-			if err != nil {
-				log.Err(err).Str("id", ID).Msg("Could not insert data into DB")
-			}
-		}()
+		s.handleClient(conn)
 	}
+}
+
+func (s *Server) handleClient(conn net.Conn) {
+	// Handshake connection
+	t := time.Now()
+	sshConn, channelChan, reqChan, err := ssh.NewServerConn(conn, s.cfg)
+	if err != nil {
+		log.Err(err).Msg("Could not handshake SSH connection")
+		conn.Close()
+		return
+	}
+	log.Debug().Str("duration", time.Since(t).String()).Msg("Connection handshaked")
+
+	t = time.Now()
+	host, ID, err := s.provider.GetHost(context.TODO())
+	if err != nil {
+		log.Err(err).Msg("Could not get a hold of an SSH host")
+		conn.Close()
+		return
+	}
+	log.Debug().Str("duration", time.Since(t).String()).Msg("Host obtained")
+
+	// Create new client
+	c := newClient(sshConn, newSSHProxy(host, "root"), channelChan)
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		c.handle(reqChan) // Blocks until client disconnects
+
+		stdout, timing, err := s.provider.GetScriptOutput(context.TODO(), ID)
+		if err != nil {
+			log.Err(err).Str("id", ID).Msg("Could not get script output")
+		} else {
+			c.session.AddScriptOutput(stdout, timing)
+		}
+
+		if err = s.provider.StopHost(context.TODO(), ID); err != nil {
+			log.Err(err).Str("id", ID).Msg("Could not stop host")
+		}
+
+		if err = s.db.BeginTx(c.session.Insert); err != nil {
+			log.Err(err).Str("id", ID).Msg("Could not insert data into DB")
+		}
+	}()
 }
 
 func (s *Server) pwCallback(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
