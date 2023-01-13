@@ -40,7 +40,8 @@ func (p *sshProxy) Connect() error {
 	}
 
 	// Try to connect for 10s
-	for i := 0; i < 100; i++ {
+	end := time.Now().Add(10 * time.Second)
+	for time.Now().Before(end) {
 		if err = connect(); err != nil {
 			time.Sleep(100 * time.Millisecond)
 			continue
