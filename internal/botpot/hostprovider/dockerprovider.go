@@ -93,7 +93,8 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 }
 
 func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
-	t := time.NewTicker(500 * time.Millisecond)
+	tDur := 500 * time.Millisecond
+	t := time.NewTicker(tDur)
 	defer t.Stop()
 	for {
 		select {
@@ -114,6 +115,7 @@ func (d *DockerProvider) monitorHostBuf(ctx context.Context) {
 					log.Err(err).Msg("Error while creating&running container")
 				}
 			}
+			t.Reset(tDur)
 
 		case <-d.shutdown:
 			return
