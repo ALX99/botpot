@@ -4,6 +4,8 @@ includes:
   common:
     taskfile: ./task/Taskfile.yml
     internal: true
+    aliases:
+      - c
 
 tasks:
   clean:
@@ -12,10 +14,7 @@ tasks:
 
   lint:
     cmds:
-      - task: common:docker-run
-        vars:
-          IMAGE: golangci/golangci-lint:latest
-          CMD: golangci-lint run ./...
+      - task: c:lint:go
 
   test:
     deps:
@@ -49,18 +48,18 @@ tasks:
   image:
     deps:
       - task: build
-      - task: common:docker-build
+      - task: c:docker:build
         vars:
           DOCKER_FILE: honeypot/Dockerfile
-          DOCKER_IMAGE: alx99/priv:honeypot
-      - task: common:docker-build
+          IMAGE_NAME: alx99/priv:honeypot
+      - task: c:docker:build
         vars:
-          DOCKER_IMAGE: alx99/priv:botpotdb
+          IMAGE_NAME: alx99/priv:botpotdb
           DIR: ./db
     cmds:
-      - task: common:docker-build
+      - task: c:docker:build
         vars:
-          DOCKER_IMAGE: alx99/priv:botpot
+          IMAGE_NAME: alx99/priv:botpot
 
   keys:
     cmds:
