@@ -30,10 +30,24 @@ const (
 type request interface {
 	Insert(tx pgx.Tx) error
 }
+
 type commonReq struct {
 	ts         time.Time
 	chID       uint32
 	fromClient bool
+}
+
+func (r commonReq) Insert(tx pgx.Tx) (int, error) {
+	row := tx.QueryRow(context.TODO(), `
+	INSERT INTO Request(session_id, channel_id, ts, from_client)
+		SELECT MAX(Session.id), $1, $2, $3
+			FROM Session
+    RETURNING id
+`, r.chID, r.ts, r.fromClient)
+
+	var id int
+	err := row.Scan(&id)
+	return id, err
 }
 
 type ptyReq struct {
@@ -48,11 +62,15 @@ type ptyReq struct {
 }
 
 func (r *ptyReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO PTYRequest(session_id, channel_id, ts, from_client, term, columns, rows, width, height, modelist)
-		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7, $8, $9
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist))
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO PTYRequest(request_id, term, columns, rows, width, height, modelist)
+		VALUES($1, $2, $3, $4, $5, $6, $7)
+`, id, r.term, r.columns, r.rows, r.width, r.height, []byte(r.modelist))
 	return err
 }
 
@@ -63,11 +81,15 @@ type execReq struct {
 }
 
 func (r *execReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ExecRequest(session_id, channel_id, ts, from_client, command)
-		SELECT MAX(Session.id), $1, $2, $3, $4
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.command)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO ExecRequest(request_id, command)
+		VALUES($1, $2)
+`, id, r.command)
 	return err
 }
 
@@ -78,11 +100,15 @@ type exitStatusReq struct {
 }
 
 func (r *exitStatusReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ExitStatusRequest(session_id, channel_id, ts, from_client, exit_status)
-		SELECT MAX(Session.id), $1, $2, $3, $4
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.exitStatus)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO ExitStatusRequest(request_id, exit_status)
+		VALUES($1, $2)
+`, id, r.exitStatus)
 	return err
 }
 
@@ -96,11 +122,15 @@ type exitSignalReq struct {
 }
 
 func (r *exitSignalReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ExitSignalRequest(session_id, channel_id, ts, from_client, signal_name, core_dumped, error_msg, language_tag)
-		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.signalName, r.coreDumped, r.errorMsg, r.langTag)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO ExitSignalRequest(request_id, signal_name, core_dumped, error_msg, language_tag)
+		VALUES($1, $2, $3, $4, $5)
+`, id, r.signalName, r.coreDumped, r.errorMsg, r.langTag)
 	return err
 }
 
@@ -109,11 +139,15 @@ type shellReq struct {
 }
 
 func (r *shellReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO ShellRequest(session_id, channel_id, ts, from_client)
-		SELECT MAX(Session.id), $1, $2, $3
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO ShellRequest(request_id)
+		VALUES($1)
+`, id)
 	return err
 }
 
@@ -127,11 +161,15 @@ type windowDimChangeReq struct {
 }
 
 func (r *windowDimChangeReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO WindowDimensionChangeRequest(session_id, channel_id, ts, from_client, columns, rows, width, height)
-		SELECT MAX(Session.id), $1, $2, $3, $4, $5, $6, $7
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.columns, r.rows, r.width, r.height)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO WindowDimChangeRequest(request_id, columns, rows, width, height)
+		VALUES($1, $2, $3, $4, $5)
+`, id, r.columns, r.rows, r.width, r.height)
 	return err
 }
 
@@ -143,11 +181,15 @@ type envReq struct {
 }
 
 func (r *envReq) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO EnvironmentRequest(session_id, channel_id, ts, from_client, name, value)
-		SELECT MAX(Session.id), $1, $2, $3, $4, $5
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.Name, r.Value)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO EnvironmentRequest(request_id, name, value)
+		VALUES($1, $2, $3)
+`, id, r.Name, r.Value)
 	return err
 }
 
@@ -158,11 +200,15 @@ type subSystemRequest struct {
 }
 
 func (r *subSystemRequest) Insert(tx pgx.Tx) error {
-	_, err := tx.Exec(context.TODO(), `
-	INSERT INTO SubSystemRequest(session_id, channel_id, ts, from_client, name)
-		SELECT MAX(Session.id), $1, $2, $3, $4
-			FROM Session
-`, r.c.chID, r.c.ts, r.c.fromClient, r.Name)
+	id, err := r.c.Insert(tx)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.TODO(), `
+	INSERT INTO SubSystemRequest(request_id, name)
+		VALUES($1, $2)
+`, id, r.Name)
 	return err
 }
 

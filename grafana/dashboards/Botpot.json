@@ -959,7 +959,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT count(*)\nFROM WindowDimensionChangeRequest \nWHERE ts >= $__timeFrom() and ts <= $__timeTo() ",
+          "rawSql": "SELECT count(*)\nFROM WindowDimChangeRequest \nWHERE ts >= $__timeFrom() and ts <= $__timeTo() ",
           "refId": "A",
           "sql": {
             "columns": [
