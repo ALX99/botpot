@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"strconv"
@@ -94,7 +95,9 @@ func (s *Server) loop() {
 		// Accept connection
 		conn, err := s.l.Accept()
 		if err != nil {
-			log.Err(err).Msg("Could not accept connection")
+			if !errors.Is(err, net.ErrClosed) {
+				log.Err(err).Msg("Could not accept connection")
+			}
 			continue
 		}
 		s.handleClient(conn)
