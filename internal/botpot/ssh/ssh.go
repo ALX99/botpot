@@ -79,7 +79,7 @@ func (s *Server) Stop() error {
 	return err
 }
 
-// nolint:ireturn //ssh.ParsePrivateKey returns interface
+// nolint:ireturn // ssh.ParsePrivateKey returns interface
 func readHostKey(keyPath string) (ssh.Signer, error) {
 	fileBytes, err := os.ReadFile(keyPath)
 	if err != nil {

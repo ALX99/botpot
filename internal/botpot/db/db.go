@@ -34,11 +34,11 @@ func (db *DB) Start() error {
 	cfg.HealthCheckPeriod = 10 * time.Second
 	cfg.MaxConnIdleTime = 10 * time.Minute
 	cfg.AfterRelease = func(_ *pgx.Conn) bool {
-		log.Debug().Msg("Connection released")
+		log.Debug().Msg("Database connection released")
 		return true
 	}
 	cfg.AfterConnect = func(_ context.Context, _ *pgx.Conn) error {
-		log.Debug().Msg("Connection established")
+		log.Debug().Msg("Database connection established")
 		return nil
 	}
 	cfg.ConnConfig.ConnectTimeout = 10 * time.Second
