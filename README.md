@@ -27,6 +27,7 @@ flowchart BT
 - Keeps a buffer of honeypot containers running, minimizing delay for attackers
 - Logs all data collected during the session and saves it in a PostgreSQL database
 - Provides visualizations of the collected data through Grafana.
+- Built on top of a [distroless image](https://github.com/GoogleContainerTools/distroless)
 
 ## Sequence Diagram
 
