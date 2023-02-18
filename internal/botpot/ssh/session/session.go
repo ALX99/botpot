@@ -70,16 +70,19 @@ func (s *Session) Insert(tx pgx.Tx) error {
 		return err
 	}
 
-	_, err = tx.Exec(context.TODO(), `
+	row := tx.QueryRow(context.TODO(), `
 	INSERT INTO Session(version, src_ip, src_port, dst_ip, dst_port, start_ts, end_ts, stdout, timing)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id
 `, s.version, s.srcIP, s.srcPort, s.dstIP, s.dstPort, s.start, s.end, s.stdout, s.timing)
-	if err != nil {
+
+	var id int
+	if err := row.Scan(&id); err != nil {
 		return err
 	}
 
 	for _, ch := range s.channels {
-		if err := ch.Insert(tx); err != nil {
+		if err := ch.Insert(tx, id); err != nil {
 			return err
 		}
 	}

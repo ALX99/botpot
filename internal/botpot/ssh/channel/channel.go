@@ -163,19 +163,18 @@ func (c *Channel) handleRequest(channel ssh.Channel, reqChan <-chan *ssh.Request
 }
 
 // Insert tries to insert the data into the database
-func (c *Channel) Insert(tx pgx.Tx) error {
+func (c *Channel) Insert(tx pgx.Tx, sessionID int) error {
 	_, err := tx.Exec(context.TODO(), `
 	INSERT INTO Channel(id, session_id, channel_type, recv, recv_stderr, start_ts, end_ts)
-		SELECT $1, MAX(Session.id), $2, $3, $4, $5, $6
-			FROM Session
-`, c.id, c.channelType, c.recv.Bytes(), c.recvStderr.Bytes(), c.start, c.end)
+		VALUES($1, $2, $3, $4, $5, $6, $7)
+`, c.id, sessionID, c.channelType, c.recv.Bytes(), c.recvStderr.Bytes(), c.start, c.end)
 	if err != nil {
 		return err
 	}
 
 	sftpFound := false
 	for _, req := range c.reqs {
-		if err = req.Insert(tx); err != nil {
+		if err = req.Insert(tx, sessionID); err != nil {
 			return err
 		}
 

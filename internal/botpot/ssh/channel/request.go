@@ -28,7 +28,7 @@ const (
 )
 
 type request interface {
-	Insert(tx pgx.Tx) error
+	Insert(tx pgx.Tx, sessionID int) error
 }
 
 type commonReq struct {
@@ -37,13 +37,12 @@ type commonReq struct {
 	fromClient bool
 }
 
-func (r commonReq) Insert(tx pgx.Tx) (int, error) {
+func (r commonReq) Insert(tx pgx.Tx, sessionID int) (int, error) {
 	row := tx.QueryRow(context.TODO(), `
 	INSERT INTO Request(session_id, channel_id, ts, from_client)
-		SELECT MAX(Session.id), $1, $2, $3
-			FROM Session
+		VALUES($1, $2, $3, $4)
     RETURNING id
-`, r.chID, r.ts, r.fromClient)
+`, sessionID, r.chID, r.ts, r.fromClient)
 
 	var id int
 	err := row.Scan(&id)
@@ -61,8 +60,8 @@ type ptyReq struct {
 	c commonReq
 }
 
-func (r *ptyReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *ptyReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -80,8 +79,8 @@ type execReq struct {
 	c commonReq
 }
 
-func (r *execReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *execReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -99,8 +98,8 @@ type exitStatusReq struct {
 	c commonReq
 }
 
-func (r *exitStatusReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *exitStatusReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -121,8 +120,8 @@ type exitSignalReq struct {
 	c commonReq
 }
 
-func (r *exitSignalReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *exitSignalReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -138,8 +137,8 @@ type shellReq struct {
 	c commonReq
 }
 
-func (r *shellReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *shellReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -160,8 +159,8 @@ type windowDimChangeReq struct {
 	c commonReq
 }
 
-func (r *windowDimChangeReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *windowDimChangeReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -180,8 +179,8 @@ type envReq struct {
 	c commonReq
 }
 
-func (r *envReq) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *envReq) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -199,8 +198,8 @@ type subSystemRequest struct {
 	c commonReq
 }
 
-func (r *subSystemRequest) Insert(tx pgx.Tx) error {
-	id, err := r.c.Insert(tx)
+func (r *subSystemRequest) Insert(tx pgx.Tx, sessionID int) error {
+	id, err := r.c.Insert(tx, sessionID)
 	if err != nil {
 		return err
 	}
