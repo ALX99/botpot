@@ -22,6 +22,6 @@ jobs:
       - name: Push docker images
         run: |
           echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u alx99 --password-stdin docker.io
-          docker push docker.io/alx99/priv:botpot
+          docker push docker.io/alx99/botpot:latest
+          docker push docker.io/alx99/honeypot:latest
           docker push docker.io/alx99/priv:botpotdb
-          docker push docker.io/alx99/priv:honeypot

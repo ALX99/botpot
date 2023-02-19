@@ -11,7 +11,7 @@ services:
     networks: [net]
 
   botpot:
-    image: alx99/priv:botpot
+    image: alx99/botpot:latest
     restart: unless-stopped
     env_file: botpot.env
     volumes:
