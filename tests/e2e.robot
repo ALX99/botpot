@@ -33,14 +33,17 @@ Psql
     ${res}=    Sh    PGPASSWORD=example psql -A -t -h localhost -U postgres -c '${query}'
     RETURN    ${res}
 
-Verify same SSH output
-    [Arguments]    ${honeypot}    ${ssh_server}    ${cmd}    ${user}=root
-    ${honeypot}=    Split String    ${honeypot}    :
-    ${ssh_server}=    Split String    ${ssh_server}    :
+SSH
+    [Arguments]    ${server}    ${cmd}    ${user}=root
+    ${server}=    Split String    ${server}    :
+    ${res}=    Sh
+    ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${server}[0] -p ${server}[1] ${cmd}
+    RETURN    ${res}
 
-    ${res1}=    Sh
-    ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${honeypot}[0] -p ${honeypot}[1] ${cmd}
-    ${res2}=    Sh
-    ...    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -o "LogLevel=ERROR" ${user}@${ssh_server}[0] -p ${ssh_server}[1] ${cmd}
+Verify same SSH output
+    [Arguments]    ${server_1}    ${server_2}    ${cmd}    ${user}=root
+
+    ${res1}=    SSH    ${server_1}    ${cmd}    user=${user}
+    ${res2}=    SSH    ${server_2}    ${cmd}    user=${user}
 
     Should Be Equal As Strings    ${res1.stdout}    ${res2.stdout}
