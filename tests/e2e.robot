@@ -26,6 +26,13 @@ Sh
     Should Be Equal As Integers    0    ${res.rc}
     RETURN    ${res}
 
+
+Psql
+    [Documentation]    Runs a SQL query against the databse
+    [Arguments]    ${query}
+    ${res}=    Sh    PGPASSWORD=example psql -A -t -h localhost -U postgres -c '${query}'
+    RETURN    ${res}
+
 Verify same SSH output
     [Arguments]    ${honeypot}    ${ssh_server}    ${cmd}    ${user}=root
     ${honeypot}=    Split String    ${honeypot}    :
