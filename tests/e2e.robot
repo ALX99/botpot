@@ -22,7 +22,7 @@ Sh
     [Arguments]    ${cmd}
     ${res}=    Run Process    bash    -c    set -euo pipefail; ${cmd}
     IF    $res.stderr    Log    ${res.stderr}    level=ERROR
-    Log Many    stdout=${res.stdout}    stdout=${res.stderr}    rc=${res.rc}
+    Log Many    stdout=${res.stdout}    stderr=${res.stderr}    rc=${res.rc}
     Should Be Equal As Integers    0    ${res.rc}
     RETURN    ${res}
 
