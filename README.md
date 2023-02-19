@@ -29,6 +29,10 @@ flowchart BT
 - Provides visualizations of the collected data through Grafana.
 - Built on top of a [distroless image](https://github.com/GoogleContainerTools/distroless)
 
+## Preview
+
+[![asciicast](https://asciinema.org/a/UN7UPd9lt2hFaDNw9grmkXI6C.svg)](https://asciinema.org/a/UN7UPd9lt2hFaDNw9grmkXI6C)
+
 ## Sequence Diagram
 
 ```mermaid
