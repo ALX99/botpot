@@ -52,10 +52,6 @@ tasks:
         vars:
           DOCKER_FILE: honeypot/Dockerfile
           IMAGE_NAME: alx99/honeypot:latest
-      - task: c:docker:build
-        vars:
-          IMAGE_NAME: alx99/priv:botpotdb
-          DIR: ./db
     cmds:
       - task: c:docker:build
         vars:

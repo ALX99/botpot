@@ -2,7 +2,9 @@ version: '3.5'
 
 services:
   db:
-    image: alx99/priv:botpotdb
+    image: postgres:latest
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD: example
