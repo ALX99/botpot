@@ -2,6 +2,7 @@
 Library     Process
 Library     String
 Library     OperatingSystem
+Test Teardown       Cleanup Database
 
 
 *** Variables ***
@@ -26,6 +27,11 @@ Sh
     Should Be Equal As Integers    0    ${res.rc}
     RETURN    ${res}
 
+Cleanup Database
+    [Documentation]    Cleans up all the tables in the Database
+    FOR    ${table}    IN    @{DB_TABLES}
+        Psql    DELETE FROM ${table};
+    END
 
 Psql
     [Documentation]    Runs a SQL query against the databse
