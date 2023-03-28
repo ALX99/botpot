@@ -29,7 +29,7 @@ type Server struct {
 }
 
 // New creates a new SSH server
-func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB) *Server {
+func New(serverVersion string, port int, keyPaths []string, provider hostprovider.SSH, database *db.DB) *Server {
 	s := &Server{
 		l:        nil,
 		provider: provider,
@@ -42,7 +42,7 @@ func New(port int, keyPaths []string, provider hostprovider.SSH, database *db.DB
 	s.cfg = &ssh.ServerConfig{
 		NoClientAuth:     true,
 		MaxAuthTries:     999,
-		ServerVersion:    "SSH-2.0-OpenSSH_8.9p1 Ubuntu 3",
+		ServerVersion:    serverVersion,
 		PasswordCallback: s.pwCallback,
 	}
 

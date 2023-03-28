@@ -55,7 +55,7 @@ func main() {
 	)
 
 	db := db.NewDB(cfg.PGHost)
-	sshServer := ssh.New(cfg.Port, cfg.SSHHostKeys, provider, &db)
+	sshServer := ssh.New(cfg.SSHServerVersion, cfg.Port, cfg.SSHHostKeys, provider, &db)
 
 	err := db.Start()
 	if err != nil {

@@ -14,6 +14,7 @@ type Config struct {
 	DockerNetwork     string `env:"DOCKER_NETWORK_NAME"`
 	HoneypotImage     string `env:"HONEYPOT_IMAGE"`
 	SSHHostKeysString string `env:"SSH_HOST_KEYS"`
+	SSHServerVersion  string `env:"SSH_SERVER_VERSION"`
 	SSHHostKeys       []string
 	Port              int `env:"PORT"`
 	HostBuffer        int `env:"HOST_BUFFER"`
