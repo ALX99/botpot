@@ -50,9 +50,8 @@ func NewDockerProvider(hostt string, config container.Config, hostConfig contain
 	}
 }
 
-func (d *DockerProvider) Start(ctx context.Context) error {
+func (d *DockerProvider) Start(ctx context.Context) (err error) {
 	log.Info().Msg("Starting DockerProvider")
-	var err error
 	d.client, err = client.NewClientWithOpts(client.WithHost(d.host))
 	if err != nil {
 		return err
@@ -80,7 +79,9 @@ func (d *DockerProvider) Start(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		defer readCloser.Close()
+		defer func() {
+			err = errors.Join(err, readCloser.Close())
+		}()
 
 		// this needs to be handled for whatever reason
 		if _, err := io.Copy(os.Stdout, readCloser); err != nil {
@@ -299,11 +300,13 @@ func (d *DockerProvider) StopHost(ctx context.Context, id string) error {
 	return d.deleteContainer(ctx, id)
 }
 
-func readTar(r io.ReadCloser) (string, error) {
-	defer r.Close()
+func readTar(r io.ReadCloser) (str string, err error) {
+	defer func() {
+		err = errors.Join(err, r.Close())
+	}()
 	tr := tar.NewReader(r)
 
-	_, err := tr.Next()
+	_, err = tr.Next()
 	if err != nil {
 		return "", err
 	}
