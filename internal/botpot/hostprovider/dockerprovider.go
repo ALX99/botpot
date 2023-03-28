@@ -179,8 +179,8 @@ func (d *DockerProvider) stopContainer(ctx context.Context, id string) error {
 		return fmt.Errorf("container with ID %s not found", id)
 	}
 
-	timeout := 10 * time.Second
-	err := d.client.ContainerStop(ctx, id, &timeout)
+	timeout := 10
+	err := d.client.ContainerStop(ctx, id, container.StopOptions{Timeout: &timeout})
 	if err != nil {
 		return err
 	}
