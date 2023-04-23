@@ -35,7 +35,8 @@ func init() {
 
 func main() {
 	cfg := setup()
-	log.Info().Str("commitHash", commitHash).Str("compilationDate", compilationDate).Msgf("Botpot started!")
+	log.Info().Str("commitHash", commitHash).Str("compilationDate", compilationDate).
+		Msgf("Botpot started!")
 
 	provider := hostprovider.NewDockerProvider(
 		cfg.DockerHost,
@@ -49,7 +50,11 @@ func main() {
 			PublishAllPorts: false,
 			ReadonlyRootfs:  false,
 		},
-		network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{cfg.DockerNetwork: {}}},
+		network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				cfg.DockerNetwork: {},
+			},
+		},
 		specs.Platform{},
 		cfg.HostBuffer,
 	)
