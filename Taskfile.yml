@@ -8,6 +8,9 @@ includes:
       - c
 
 tasks:
+  default:
+    - task: start
+
   clean:
     desc: clean ./build and docker
     cmds:
