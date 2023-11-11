@@ -9,14 +9,18 @@ includes:
 
 tasks:
   clean:
-    - rm -rf ./build
-    - docker-compose down
+    desc: clean ./build and docker
+    cmds:
+      - rm -rf ./build
+      - docker-compose down
 
   lint:
+    desc: lint project
     cmds:
       - task: c:lint:go
 
   test:
+    desc: test project
     deps:
       - start
     cmds:
@@ -28,6 +32,7 @@ tasks:
       TEST_IMAGE: { sh: docker run -d -p 2001:22 alx99/honeypot:latest }
 
   build:
+    desc: build project
     sources:
       - ./internal/**/*.go
       - ./cmd/botpot/main.go
@@ -38,14 +43,18 @@ tasks:
       - CGO_ENABLED=0 go build -v -trimpath -ldflags "-s -w -X 'main.commitHash={{.COMMIT_HASH}}' -X 'main.compilationDate={{.DATE}}'" -o ./build/botpot ./cmd/botpot/main.go
 
   start:
+    desc: start project
     deps: [image, keys]
     cmds:
       - docker-compose up -d
 
   stop:
-    - docker-compose stop
+    desc: stop project
+    cmds:
+      - docker-compose stop
 
   image:
+    desc: build project images
     deps:
       - task: build
       - task: c:docker:build
@@ -58,6 +67,7 @@ tasks:
           IMAGE_NAME: alx99/botpot:latest
 
   keys:
+    desc: generate crypto keys
     cmds:
       - mkdir -p {{.KEY_DIR}}
       - ssh-keygen -t rsa -N "" -f {{.KEY_DIR}}/rsa.pem
