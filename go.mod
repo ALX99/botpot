@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.5.0
 	github.com/opencontainers/image-spec v1.0.2
 	github.com/rs/zerolog v1.31.0
-	golang.org/x/crypto v0.15.0
+	golang.org/x/crypto v0.31.0
 )
 
 require (
@@ -28,12 +28,12 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
-	golang.org/x/sync v0.5.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sync v0.10.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.15.0 // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	gotest.tools/v3 v3.4.0 // indirect
 )
